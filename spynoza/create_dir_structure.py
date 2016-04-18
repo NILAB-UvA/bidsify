@@ -66,15 +66,15 @@ class DataOrganizer(object):
         url = 'https://db.tt/KCemtca7'
         out_file = op.join('%s' % self.project_dir, 'test_data.zip')
 
-        if not op.isdir(op.dirname(out_file)):
-            os.makedirs(op.dirname(out_file))
-
         if op.exists(op.join(self.project_dir, 'test_data')):
             self.project_dir = op.join(op.dirname(out_file), 'test_data')
             self.working_dir = op.join(self.project_dir, 'working_directory')
-            self.subject_dirs = glob(op.join(self.project_dir, '%s*' % self.subject_stem))
+            self.subject_dirs = glob(op.join(self.working_dir, '%s*' % self.subject_stem))
 
             return 'Already downloaded!'
+
+        if not op.isdir(op.dirname(out_file)):
+            os.makedirs(op.dirname(out_file))
 
         msg = """ The file you will download is 523 MB; do you want to continue?
                   (Y / N) """

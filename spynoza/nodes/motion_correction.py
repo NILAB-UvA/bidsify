@@ -25,7 +25,7 @@ def find_middle_run(in_files):
 
     idx = np.hstack([np.where(np.array(x.split('_')) == 'SENSE')[0] + 1 for x in in_files])
     run_nrs = np.array([int(x.split('_')[i]) for x, i in zip(in_files, idx)])
-    middle_run = np.where(np.median(run_nrs) == run_nrs)[0][0]
+    middle_run = in_files[np.where(np.median(run_nrs) == run_nrs)[0][0]]
     other_runs = [x for x in in_files if x != middle_run]
 
     return middle_run, other_runs
