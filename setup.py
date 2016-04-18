@@ -7,11 +7,19 @@ def readme():
     with open('README.md') as f:
         return f.read()
 
+install_requires = [
+    'nibabel',
+    'nipype',
+    'numpy',
+    'scipy'
+]
+
 setup(
     name='spynoza',
     version=VERSION,
     description='Python package for fMRI data processing',
     long_description=readme(),
+    requires=install_requires,
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
