@@ -58,3 +58,6 @@ target/
 
 # IDEA dir (PyCharm)
 .idea
+*.swp*
+# notebook stuff
+*.ipynb_checkpoints*
