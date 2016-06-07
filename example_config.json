@@ -1,0 +1,61 @@
+{
+  "options": {
+
+    "backup": 1
+
+  },
+
+  "mappings": {
+
+    "bold": "EPI",
+    "topup": "topup",
+    "physio": ".phy",
+    "events": ".log",
+    "eyedata": ".edf",
+
+    "T1w": "T13D",
+    "T2w": "T2"
+  },
+
+  "func": {
+
+    "Task One": {
+
+      "id": "TaskOne",
+      "task": "TaskOne",
+      "acq": "multiband",
+      "rec": "",
+      "run": ""
+
+    },
+
+    "Task Two": {
+
+      "id": "TaskTwo",
+      "task": "TaskTwo",
+      "acq": "sequential",
+      "rec": "",
+      "run": 3
+
+    }
+  },
+
+  "anat": {
+
+    "T1": {
+
+      "id": "T13D",
+      "name": ""
+
+    },
+
+    "T2": {
+
+      "id": "T2",
+      "name": "testT2"
+
+    }
+
+  }
+
+}
