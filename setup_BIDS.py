@@ -1,8 +1,11 @@
+from __future__ import print_function
 import json
 import shutil
 import gzip
 import os
+import urllib
 import argparse
+import subprocess
 import nibabel as nib
 import os.path as op
 from glob import glob
@@ -124,9 +127,49 @@ class BIDSConstructor(object):
 
         return path
 
+def fetch_example_data(directory=None):
+
+    if directory is None:
+        directory = os.getcwd()
+
+    url = "https://db.tt/mJ7P8ZUm"
+    out_file = op.join(directory, 'sample_data_bids.zip')
+
+    if op.exists(out_file):
+        return 'Already downloaded!'
+
+    msg = """ The file you will download is ~885 MB; do you want to continue?
+              (Y / N) """
+    resp = raw_input(msg)
+
+    if resp in ['Y', 'y', 'yes', 'Yes']:
+        print('Downloading test data ...', end='')
+
+        out_dir = op.dirname(out_file)
+        if not op.isdir(out_dir):
+            os.makedirs(out_dir)
+
+        if not op.exists(out_file):
+            urllib.urlretrieve(url, out_file)
+
+        with open(os.devnull, 'w') as devnull:
+            subprocess.call(['unzip', out_file, '-d', out_dir], stdout=devnull)
+            subprocess.call(['rm', out_file], stdout=devnull)
+
+            print(' done.')
+            print('Data is located at: %s' % op.join(out_dir, 'test_data'))
+
+    elif resp in ['N', 'n', 'no', 'No']:
+        print('Aborting download.')
+    else:
+        print('Invalid answer! Choose Y or N.')
+
+    return out_dir
 
 
 if __name__ == '__main__':
+
+    #fetch_example_data()
 
     parser = argparse.ArgumentParser(description='This is a command line tool to convert '
                                                  'unstructured data-directories to a BIDS-compatible '
@@ -144,3 +187,4 @@ if __name__ == '__main__':
 
     bids_constructor = BIDSConstructor(args.directory, args.config_file)
     bids_constructor.convert2bids()
+
