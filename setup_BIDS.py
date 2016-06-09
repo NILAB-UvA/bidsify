@@ -11,7 +11,9 @@ import os.path as op
 from glob import glob
 from copy import copy, deepcopy
 from collections import OrderedDict
-
+from joblib import Parallel, delayed
+from nifti_converters import parrec2nii
+from behav2tsv import PresentationLogfileCrawler
 
 class BIDSConstructor(object):
 
@@ -24,7 +26,7 @@ class BIDSConstructor(object):
         self.backup = None
         self.mappings = None
 
-    def convert2bids(self):
+    def convert2bids(self, n_cores=-1):
 
         self._parse_cfg_file()
         self.sub_dirs = glob(op.join(self.project_dir, 'sub*'))
@@ -96,29 +98,23 @@ class BIDSConstructor(object):
                 os.rename(f, full_name)
 
         self._parrec2nii(data_dir)
+        self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
 
     def _parrec2nii(self, directory, compress=True):
 
-        REC_files = glob(op.join(directory, '*.REC'))
         PAR_files = glob(op.join(directory, '*.PAR'))
 
-        # Create scaninfo from PAR and convert .REC to nifti
-        for REC, PAR in zip(REC_files, PAR_files):
+        Parallel(n_jobs=-1)(delayed(parrec2nii)(pfile, compress) for pfile in PAR_files)
 
-            REC_name = REC[:-4]
+    def _log2tsv(self, directory, type='Presentation'):
 
-            if not op.exists(REC_name + '.nii') or not op.exists(REC_name + '.nii.gz'):
-                PR_obj = nib.parrec.load(REC)
-                nib.nifti1.save(PR_obj, REC_name)
-                ni_name = REC_name + '.nii'
+        if type == 'Presentation':
+            logs = glob(op.join(directory, '*.log'))
+            event_dir = op.join(self.project_dir, 'task_info')
 
-                # if compress:
-                with open(ni_name, 'rb') as f_in, gzip.open(ni_name + '.gz', 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            else:
-                continue
-
-        _ = [os.remove(f) for f in REC_files + PAR_files + glob(op.join(directory, '*.nii'))]
+            for log in logs:
+                plc = PresentationLogfileCrawler(in_file=log, event_dir=event_dir)
+                plc.parse()
 
     def _make_dir(self, path):
 
@@ -176,6 +172,8 @@ if __name__ == '__main__':
                                                  'format.')
     parser.add_argument('-d', '--directory', help='Directory to be converted.', required=False)
     parser.add_argument('-c', '--config_file', help='Config-file with img. acq. parameters', required=False)
+    parser.add_argument('-p', '--parallel', help='Execute par/rec conversion+zipping in parallel?',
+                        required=False, type=int)
 
     args = parser.parse_args()
 
@@ -185,6 +183,9 @@ if __name__ == '__main__':
     if args.config_file is None:
         args.config_file = op.join(os.getcwd(), 'config.json')
 
+    if args.parallel is None:
+        args.parallel = -1
+
     bids_constructor = BIDSConstructor(args.directory, args.config_file)
-    bids_constructor.convert2bids()
+    bids_constructor.convert2bids(args.parallel)
 

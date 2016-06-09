@@ -1,7 +1,8 @@
 {
   "options": {
 
-    "backup": 1
+    "backup": 0,
+    "log_type": "Presentation"
 
   },
 
