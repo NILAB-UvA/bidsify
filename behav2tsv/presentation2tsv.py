@@ -7,7 +7,7 @@ import numpy as np
 from glob import glob
 from copy import copy, deepcopy
 
-class PresentationLogfileCrawler(object):
+class Pres2tsv(object):
     """ Parses a Presentation logfile.
 
     Logfile crawler for Presentation (Neurobs) files.
@@ -151,10 +151,3 @@ class PresentationLogfileCrawler(object):
         fn = op.join(op.dirname(f), op.splitext(op.basename(f))[0])
         df.to_csv(fn + '.tsv', sep='\t', index=None)
         os.remove(self.in_file)
-
-if __name__ == '__main__':
-
-    test_log = '/home/lukas/test_bids/sub-002/func/sub-002_task-TaskOne_acq-multiband_events.log'
-    events_dir = '/home/lukas/test_bids/task_info'
-    plc = PresentationLogfileCrawler(in_file=test_log, event_dir=events_dir)
-    plc.parse()

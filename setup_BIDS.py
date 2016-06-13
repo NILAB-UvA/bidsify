@@ -1,19 +1,21 @@
 from __future__ import print_function
-import json
-import shutil
-import gzip
-import os
-import urllib
+
 import argparse
-import subprocess
-import nibabel as nib
+import json
+import os
 import os.path as op
-from glob import glob
-from copy import copy, deepcopy
+import shutil
+import subprocess
+import urllib
 from collections import OrderedDict
+from copy import copy, deepcopy
+from glob import glob
+
 from joblib import Parallel, delayed
-from nifti_converters import parrec2nii
-from behav2tsv import PresentationLogfileCrawler
+
+from raw2nifti import parrec2nii
+from behav2tsv import Pres2tsv
+
 
 class BIDSConstructor(object):
 
@@ -103,7 +105,6 @@ class BIDSConstructor(object):
     def _parrec2nii(self, directory, compress=True):
 
         PAR_files = glob(op.join(directory, '*.PAR'))
-
         Parallel(n_jobs=-1)(delayed(parrec2nii)(pfile, compress) for pfile in PAR_files)
 
     def _log2tsv(self, directory, type='Presentation'):
@@ -113,7 +114,7 @@ class BIDSConstructor(object):
             event_dir = op.join(self.project_dir, 'task_info')
 
             for log in logs:
-                plc = PresentationLogfileCrawler(in_file=log, event_dir=event_dir)
+                plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
 
     def _make_dir(self, path):
@@ -162,30 +163,4 @@ def fetch_example_data(directory=None):
 
     return out_dir
 
-
-if __name__ == '__main__':
-
-    #fetch_example_data()
-
-    parser = argparse.ArgumentParser(description='This is a command line tool to convert '
-                                                 'unstructured data-directories to a BIDS-compatible '
-                                                 'format.')
-    parser.add_argument('-d', '--directory', help='Directory to be converted.', required=False)
-    parser.add_argument('-c', '--config_file', help='Config-file with img. acq. parameters', required=False)
-    parser.add_argument('-p', '--parallel', help='Execute par/rec conversion+zipping in parallel?',
-                        required=False, type=int)
-
-    args = parser.parse_args()
-
-    if args.directory is None:
-        args.directory = os.getcwd()
-
-    if args.config_file is None:
-        args.config_file = op.join(os.getcwd(), 'config.json')
-
-    if args.parallel is None:
-        args.parallel = -1
-
-    bids_constructor = BIDSConstructor(args.directory, args.config_file)
-    bids_constructor.convert2bids(args.parallel)
 
