@@ -5,43 +5,53 @@ import numpy as np
 import gzip
 import shutil
 import json
+import subprocess
 import nibabel as nib
 
-def parrec2nii(PAR_file, compress=True):
+def parrec2nii(PAR_file, compress=True, backend='nibabel'):
 
     base_dir = op.dirname(PAR_file)
     base_name = op.join(base_dir, op.splitext(PAR_file)[0])
+    ni_name = base_name + '.nii'
 
     REC_file = '%s.REC' % op.splitext(PAR_file)[0]
 
     if not op.exists(base_name + '.nii') and not op.exists(base_name + '.nii.gz'):
 
-        with open(PAR_file, 'r') as f:
-            hdr = nib.parrec.parse_PAR_header(f)[0]
+        if backend == 'nibabel':
 
-        for key, value in hdr.iteritems():
+            with open(PAR_file, 'r') as f:
+                hdr = nib.parrec.parse_PAR_header(f)[0]
 
-            if isinstance(value, (np.ndarray, np.generic)):
-                hdr[key] = value.tolist()
+            for key, value in hdr.iteritems():
 
-        parts = op.basename(base_name).split('_')
-        task_pair = [pair for pair in parts if 'task' in pair]
-        task_name = task_pair[0].split('-')[-1] if task_pair else 'no task'
+                if isinstance(value, (np.ndarray, np.generic)):
+                    hdr[key] = value.tolist()
 
-        hdr_json = {'RepetitionTime': hdr['repetition_time'] / 1000,
-                    'TaskName': task_name}
+            parts = op.basename(base_name).split('_')
+            task_pair = [pair for pair in parts if 'task' in pair]
+            task_name = task_pair[0].split('-')[-1] if task_pair else 'no task'
 
-        fn = base_name + '.json'
+            hdr_json = {'RepetitionTime': hdr['repetition_time'] / 1000,
+                        'TaskName': task_name}
 
-        with open(fn, 'w') as to_write:
-            json.dump(hdr_json, to_write, indent=4)
+            fn = base_name + '.json'
 
-        PR_obj = nib.parrec.load(REC_file)
-        nib.nifti1.save(PR_obj, base_name)
-        ni_name = base_name + '.nii'
+            with open(fn, 'w') as to_write:
+                json.dump(hdr_json, to_write, indent=4)
 
-        if compress:
+            PR_obj = nib.parrec.load(REC_file)
+            nib.nifti1.save(PR_obj, base_name)
+
+        elif backend == 'dcm2niix':
+
+            with open(os.devnull, 'w') as devnull:
+                subprocess.call(['dcm2niix', '-b', 'y',
+                                 '-f', op.basename(base_name),
+                                 PAR_file], stdout=devnull)
+
+        if compress and not op.exists(ni_name + '.gz'):
             with open(ni_name, 'rb') as f_in, gzip.open(ni_name + '.gz', 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
-    _ = [os.remove(f) for f in [REC_file] + [PAR_file] + [ni_name]]
+    _ = [os.remove(f) for f in [REC_file] + [PAR_file] + [ni_name] if op.exists(f)]
