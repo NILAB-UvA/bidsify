@@ -12,7 +12,7 @@ from glob import glob
 from joblib import Parallel, delayed
 from raw2nifti import parrec2nii
 from behav2tsv import Pres2tsv
-
+from utils import check_executable
 
 class BIDSConstructor(object):
 
@@ -21,9 +21,12 @@ class BIDSConstructor(object):
 
         self.project_dir = project_dir
         self.cfg_file = cfg_file
+        self.dcm2niix = check_executable('dcm2niix')
+        self.edf2asc = check_executable('edf2asc')
         self.sub_dirs = None
         self.cfg = None
         self.mappings = None
+        self.debug = None
 
     def convert2bids(self):
         """ Method to call conversion process. """
@@ -37,6 +40,7 @@ class BIDSConstructor(object):
             raise ValueError(msg)
 
         if self.cfg['options']['backup']:
+            print("Performing back-up.")
             self._backup()
 
         for sub_dir in self.sub_dirs:
@@ -47,13 +51,19 @@ class BIDSConstructor(object):
             sess_dirs = glob(op.join(sub_dir, 'ses*'))
 
             if not sess_dirs:
-                # If there are no session dirs, use sub_dir
+                # If there are no session dirs,  use sub_dir
                 sess_dirs = [sub_dir]
 
             for sess_dir in sess_dirs:
 
                 data_types = [c for c in self.cfg.keys() if c in ['func', 'anat', 'dwi', 'fmap']]
-                succ = [self._process_raw(sess_dir, dtype, sub_name) for dtype in data_types]
+                _ = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
+                _ = [self._transform(sess_dir, dtype, sub_name) for dtype in data_types]
+
+                leftover_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
+                if leftover_files:
+                    print('Unallocated files found in %s:' % sess_dir)
+                    _ = [print(f) for f in leftover_files]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
@@ -72,8 +82,7 @@ class BIDSConstructor(object):
             self.cfg['options']['n_cores'] = -1
 
         self.mappings = self.cfg['mappings']
-
-        # Maybe define some defaults here?
+        self.debug = self.cfg['options']['debug']
 
     def _backup(self):
         """ Backs up raw data into separate dir. """
@@ -82,10 +91,10 @@ class BIDSConstructor(object):
         backup_dir = self._make_dir(op.join(op.dirname(self.project_dir), 'backup_raw'))
 
         for d in dirs:
-            if not op.isdir(d):
+            if op.isdir(d) and not op.isdir(d):
                 shutil.copytree(d, op.join(backup_dir, op.basename(d)))
 
-    def _process_raw(self, sess_dir, dtype, sub_name):
+    def _move_and_rename(self, sess_dir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
         n_elem = len(self.cfg[dtype])
 
@@ -120,7 +129,10 @@ class BIDSConstructor(object):
                 full_name = op.join(data_dir, common_name + '_%s%s' % (ftype, op.splitext(f)[-1]))
                 os.rename(f, full_name)
 
+    def _transform(self, sess_dir, dtype, sub_name):
+
         # Convert stuff to bids-compatible formats (e.g. nii.gz, .tsv, etc.)
+        data_dir = op.join(sess_dir, dtype)
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
         self._edf2tsv(data_dir)
@@ -128,13 +140,15 @@ class BIDSConstructor(object):
     def _mri2nifti(self, directory, compress=True, n_cores=-1):
         """ Converts raw mri to nifti.gz. """
 
+        compress = False if self.debug else True
+
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
 
             try:
-                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'nibabel') for pfile in PAR_files)
-            except KeyError:
                 Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'dcm2niix') for pfile in PAR_files)
+            except KeyError:
+                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'nibabel') for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'dicom':
             print('Not yet implemented!')
@@ -149,13 +163,11 @@ class BIDSConstructor(object):
             event_dir = op.join(self.project_dir, 'task_info')
 
             if not op.isdir(event_dir):
-                raise OSError("The event_dir '%s' doesnt exist!" % event_dir)
+                raise IOError("The event_dir '%s' doesnt exist!" % event_dir)
 
             for log in logs:
                 plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
-        else:
-            print('Log-conversion other than Presentation is not yet implemented')
 
     def _edf2tsv(self, directory):
 
