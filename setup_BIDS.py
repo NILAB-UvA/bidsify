@@ -6,6 +6,7 @@ import os.path as op
 import shutil
 import subprocess
 import urllib
+import warnings
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -27,6 +28,16 @@ class BIDSConstructor(object):
         self.cfg = None
         self.mappings = None
         self.debug = None
+
+        if not self.dcm2niix:
+            msg = "The program 'dcm2niix' was not found on this computer; attempting to " \
+                  "convert mri-files to nifti using nibabel."
+            warnings.warn(msg)
+
+        if not self.edf2asc:
+            msg = "The program 'edf2asc' was not found on this computer; cannot convert " \
+                  "edf-files!"
+            warnings.warn(msg)
 
     def convert2bids(self):
         """ Method to call conversion process. """
@@ -58,12 +69,12 @@ class BIDSConstructor(object):
 
                 data_types = [c for c in self.cfg.keys() if c in ['func', 'anat', 'dwi', 'fmap']]
                 _ = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
-                _ = [self._transform(sess_dir, dtype, sub_name) for dtype in data_types]
+                _ = [self._transform(sess_dir, dtype) for dtype in data_types]
 
-                leftover_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
-                if leftover_files:
+                unalloc_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
+                if unalloc_files:
                     print('Unallocated files found in %s:' % sess_dir)
-                    _ = [print(f) for f in leftover_files]
+                    _ = [print(f) for f in unalloc_files]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
@@ -72,13 +83,13 @@ class BIDSConstructor(object):
             self.cfg = json.load(config, object_pairs_hook=OrderedDict)
 
         # Definition of sensible defaults
-        if not "backup" in self.cfg['options']:
+        if not 'backup' in self.cfg['options']:
             self.cfg['options']['backup'] = 0
 
-        if not "mri_type" in self.cfg['options']:
+        if not 'mri_type' in self.cfg['options']:
             self.cfg['options']['mri_type'] = 'parrec'
 
-        if not "n_cores" in self.cfg['options']:
+        if not 'n_cores' in self.cfg['options']:
             self.cfg['options']['n_cores'] = -1
 
         self.mappings = self.cfg['mappings']
@@ -88,11 +99,12 @@ class BIDSConstructor(object):
         """ Backs up raw data into separate dir. """
 
         dirs = [d for d in glob(op.join(self.project_dir, 'sub-*')) if op.isdir(d)]
-        backup_dir = self._make_dir(op.join(op.dirname(self.project_dir), 'backup_raw'))
+        backup_dir = self._make_dir(op.join(self.project_dir, 'backup_raw'))
 
         for d in dirs:
-            if op.isdir(d) and not op.isdir(d):
-                shutil.copytree(d, op.join(backup_dir, op.basename(d)))
+            dest_dir = op.join(backup_dir, op.basename(d))
+            if op.isdir(d) and not op.isdir(dest_dir):
+                shutil.copytree(d, dest_dir)
 
     def _move_and_rename(self, sess_dir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
@@ -106,15 +118,15 @@ class BIDSConstructor(object):
         # Loop over contents of func/anat/dwi/fieldmap
         for elem in self.cfg[dtype].keys():
 
-            # Kinda ugly; needs a more elegant solution
-            tmp = deepcopy(self.cfg[dtype][elem])
-            idf = tmp['id']
-            del tmp['id']
+            # Kinda ugly, but can't figure out a more elegant way atm
+            kv_pairs = deepcopy(self.cfg[dtype][elem])
+            idf = deepcopy(kv_pairs['id'])
+            del kv_pairs['id']
 
             # common_name is simply sub-xxx
             common_name = copy(sub_name)
 
-            for key, value in tmp.iteritems():
+            for key, value in kv_pairs.iteritems():
 
                 # Append key-value pair if it's not an empty string
                 if value:
@@ -125,11 +137,20 @@ class BIDSConstructor(object):
 
             for f in files:
                 # Rename files according to mapping
-                ftype = ''.join([k if v in f else '' for k, v in self.mappings.iteritems()])
+                types = [ftype for ftype, match in self.mappings.iteritems() if match in f]
+
+                if len(types) > 1:
+                    msg = "Couldn't determine file-type for file '%s'; is one of the "\
+                          "following:\n %r" % (f, types)
+                    warnings.warn(msg)
+                else:
+                    ftype = types[0]
+
+                # Create full name as common_name + unique filetype + original extension
                 full_name = op.join(data_dir, common_name + '_%s%s' % (ftype, op.splitext(f)[-1]))
                 os.rename(f, full_name)
 
-    def _transform(self, sess_dir, dtype, sub_name):
+    def _transform(self, sess_dir, dtype):
 
         # Convert stuff to bids-compatible formats (e.g. nii.gz, .tsv, etc.)
         data_dir = op.join(sess_dir, dtype)
