@@ -3,7 +3,7 @@ import os
 import os.path as op
 
 def create_json_metadata(ftype):
-
+    """ THIS IS A TEST"""
     pass
 
 json_fields = {}
