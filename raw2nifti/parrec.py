@@ -7,7 +7,7 @@ import shutil
 import json
 import subprocess
 import nibabel as nib
-from ..utils import check_executable
+from spynoza.BIDS_tools.utils import check_executable
 from glob import glob
 
 
