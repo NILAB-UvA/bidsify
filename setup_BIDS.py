@@ -147,7 +147,8 @@ class BIDSConstructor(object):
                     ftype = types[0]
 
                 # Create full name as common_name + unique filetype + original extension
-                full_name = op.join(data_dir, common_name + '_%s%s' % (ftype, op.splitext(f)[-1]))
+                exts = '.'.join(f.split('.')[1:])
+                full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, exts))
                 os.rename(f, full_name)
 
     def _transform(self, sess_dir, dtype):
@@ -172,7 +173,7 @@ class BIDSConstructor(object):
                 Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'nibabel') for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'dicom':
-            print('Not yet implemented!')
+            print('DICOM conversion not yet implemented!')
         else:
             print('Not supported!')
 
