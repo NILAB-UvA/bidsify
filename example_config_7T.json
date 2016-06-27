@@ -2,7 +2,7 @@
   "options": {
 
     "backup": 1,
-    "mri_type": "nifti", 
+    "mri_type": "nifti-gz",
     "log_type": "pickle",
     "FS_dir": "",
     "n_cores": -1,
@@ -17,7 +17,7 @@
     "physio": "SCANPHYSLOG",
     "events": ".pickle",
     "eyedata": ".edf",
-    "b0": "wipb0mapbrainV4*.nii.gz"
+    "b0": "wipb0mapbrainV4-t00*.nii.gz"
 
   },
 
@@ -98,13 +98,14 @@
 
     "b0_mag": {
 
-      "id": "wipb0mapbrainV4-t00"
-
+      "id": "wipb0mapbrainV4-t000",
+      "mapping": "phasediff"
     },
 
     "b0_ph": {
 
-      "id": "wipb0mapbrainV4-t003"
+      "id": "wipb0mapbrainV4-t003",
+      "mapping": "magnitude"
 
     }
 
