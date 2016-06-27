@@ -1,7 +1,7 @@
 {
   "options": {
 
-    "backup": 0,
+    "backup": 1,
     "mri_type": "nifti", 
     "log_type": "pickle",
     "FS_dir": "",
@@ -12,13 +12,12 @@
 
   "mappings": {
 
-    "bold": "EPI",
-    "topup": "topup",
-    "physio": ".log",
+    "bold": "d0462.nii.gz",
+    "topup": "topup*.nii.gz",
+    "physio": "SCANPHYSLOG",
     "events": ".pickle",
     "eyedata": ".edf",
-
-    "b0": "B0"
+    "b0": "wipb0mapbrainV4*.nii.gz"
 
   },
 
@@ -26,7 +25,7 @@
 
     "Mapper_1": {
 
-      "id": "mapper1sense",
+      "id": "mapper1",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -36,7 +35,7 @@
 
     "Mapper_2": {
 
-      "id": "mapper2sense",
+      "id": "mapper2",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -46,7 +45,7 @@
 
     "Mapper_3": {
 
-      "id": "mapper3sense",
+      "id": "mapper3",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -56,7 +55,7 @@
 
     "Mapper_4": {
 
-      "id": "mapper4sense",
+      "id": "mapper4",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -66,7 +65,7 @@
  
     "Mapper_5": {
 
-      "id": "mapper5sense",
+      "id": "mapper5",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -76,7 +75,7 @@
  
     "Mapper_6": {
 
-      "id": "mapper6sense",
+      "id": "mapper6",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -86,7 +85,7 @@
 
     "Mapper_7": {
 
-      "id": "mapper7sense",
+      "id": "mapper7",
       "task": "mapper",
       "acq": "multiband",
       "rec": "",
@@ -95,12 +94,11 @@
     }
   },
 
-
-  "fieldmap": {
+  "fmap": {
 
     "b0_mag": {
 
-      "id": "wipb0mapbrainV4-t000"
+      "id": "wipb0mapbrainV4-t00"
 
     },
 

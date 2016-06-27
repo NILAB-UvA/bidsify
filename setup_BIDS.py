@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import urllib
 import warnings
+import fnmatch
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -137,14 +138,25 @@ class BIDSConstructor(object):
 
             for f in files:
                 # Rename files according to mapping
-                types = [ftype for ftype, match in self.mappings.iteritems() if match in f]
+
+                types = []
+                for ftype, match in self.mappings.iteritems():
+                    match = '*' + match + '*'
+
+                    if fnmatch.fnmatch(f, match):
+                        types.append(ftype)
 
                 if len(types) > 1:
                     msg = "Couldn't determine file-type for file '%s'; is one of the "\
                           "following:\n %r" % (f, types)
                     warnings.warn(msg)
-                else:
+                elif len(types) == 1:
                     ftype = types[0]
+                else:
+                    # No file found; ends up in unallocated (printed later).
+                    pass
+
+                print("Type '%s' determined for file '%s'" % (ftype, op.basename(f)))
 
                 # Create full name as common_name + unique filetype + original extension
                 exts = '.'.join(f.split('.')[1:])
