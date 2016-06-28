@@ -131,7 +131,7 @@ class BIDSConstructor(object):
             for key, value in kv_pairs.iteritems():
 
                 # Append key-value pair if it's not an empty string
-                if key and key != 'mapping':
+                if value and key != 'mapping':
                     common_name += '_%s-%s' % (key, value)
                 elif key == 'mapping':
                     common_name += '_%s' % value
@@ -163,7 +163,6 @@ class BIDSConstructor(object):
                 exts = '.'.join(f.split('.')[1:])
                 full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, exts))
                 full_name = full_name.replace('_b0', '')
-                print("Renaming file '%s' into '%s'" % (op.basename(f), op.basename(full_name)))
                 os.rename(f, full_name)
 
     def _transform(self, sess_dir, dtype):
@@ -258,18 +257,17 @@ def fetch_example_data(directory=None, type='7T'):
         directory = os.getcwd()
 
     if type == '7T':
-        url = "https://surfdrive.surf.nl/files/index.php/s/XYK69YWWH3Ikf95/download"
+        url = "https://surfdrive.surf.nl/files/index.php/s/Lc6pvD0mK6ZNZKo/download"
     elif type == '3T':
         print('3T dataset not yet uploaded.')
         return 0
 
-    out_file = op.join(directory, 'testdata_%s.zip' % type)
+    out_file = op.join(directory, 'testdata_%s_new.zip' % type)
 
     if op.exists(out_file):
         return 'Already downloaded!'
 
-    msg = """ The file you will download is ~1.8 GB; do you want to continue?
-              (Y / N) """
+    msg = """ The file you will download is ~1.8 GB; do you want to continue? (Y / N): """
     resp = raw_input(msg)
 
     if resp in ['Y', 'y', 'yes', 'Yes']:
@@ -287,7 +285,7 @@ def fetch_example_data(directory=None, type='7T'):
             subprocess.call(['rm', out_file], stdout=devnull)
 
             print(' done.')
-            print('Data is located at: %s' % op.join(out_dir, 'test_data'))
+            print('Data is located at: %s' % op.join(out_dir, op.basename(out_file)))
 
     elif resp in ['N', 'n', 'no', 'No']:
         print('Aborting download.')
