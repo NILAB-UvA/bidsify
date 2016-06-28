@@ -263,7 +263,7 @@ def fetch_example_data(directory=None, type='7T'):
         print('3T dataset not yet uploaded.')
         return 0
 
-    out_file = op.join(directory, 'testdata_%s' % type)
+    out_file = op.join(directory, 'testdata_%s.zip' % type)
 
     if op.exists(out_file):
         return 'Already downloaded!'
