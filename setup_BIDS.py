@@ -271,17 +271,21 @@ def fetch_example_data(directory=None, type='7T'):
 
     if type == '7T':
         url = "https://surfdrive.surf.nl/files/index.php/s/Lc6pvD0mK6ZNZKo/download"
+        # Have to use _new extension because Surfdrive won't let me remove files (argh)
+        out_file = op.join(directory, 'testdata_%s_new.zip' % type)
+        size_msg = """ The file you will download is ~1.8 GB; do you want to continue? (Y / N): """
     elif type == '3T':
-        print('3T dataset not yet uploaded.')
-        return 0
-
-    out_file = op.join(directory, 'testdata_%s_new.zip' % type)
+        url = "https://surfdrive.surf.nl/files/index.php/s/prfv4mh2ft01LSN/download"
+        out_file = op.join(directory, 'testdata_%s.zip' % type)
+        size_msg = """ The file you will download is ~120 MB; do you want to continue? (Y / N): """
+    else:
+        msg = "Specify for type either '7T' or '3T'"
+        raise ValueError(msg)
 
     if op.exists(out_file):
         return 'Already downloaded!'
 
-    msg = """ The file you will download is ~1.8 GB; do you want to continue? (Y / N): """
-    resp = raw_input(msg)
+    resp = raw_input(size_msg)
 
     if resp in ['Y', 'y', 'yes', 'Yes']:
         print('Downloading test data (%s) ...' % type, end='')
