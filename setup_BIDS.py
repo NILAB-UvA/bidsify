@@ -160,9 +160,22 @@ class BIDSConstructor(object):
                     pass
 
                 # Create full name as common_name + unique filetype + original extension
-                exts = '.'.join(f.split('.')[1:])
-                full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, exts))
+                exts = f.split('.')[1:]
+
+                # For some weird reason, people seem to use periods in filenames,
+                # so remove all unnecessary 'extensions'
+                allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle', 'json',
+                                'edf', 'log', 'bz2', 'tar']
+                upper_exts = [s.upper() for s in allowed_exts]
+                allowed_exts.extend(upper_exts)
+
+                clean_exts = '.'.join([e for e in exts if e in allowed_exts])
+                full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, clean_exts))
                 full_name = full_name.replace('_b0', '')
+
+                if self.debug:
+                    print("Renaming '%s' as '%s'" % (f, full_name))
+
                 os.rename(f, full_name)
 
     def _transform(self, sess_dir, dtype):
