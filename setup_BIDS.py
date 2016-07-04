@@ -302,14 +302,16 @@ def fetch_example_data(directory=None, type='7T'):
             subprocess.call(['rm', out_file], stdout=devnull)
 
             print(' done.')
-            print('Data is located at: %s' % op.join(out_dir, op.basename(out_file)))
+
+        out_file = op.join(out_dir, op.basename(out_file[:-4]))
+        print('Data is located at: %s' % out_file)
 
     elif resp in ['N', 'n', 'no', 'No']:
         print('Aborting download.')
     else:
         print('Invalid answer! Choose Y or N.')
 
-    return out_dir
+    return out_file
 
 
 
