@@ -17,26 +17,54 @@ from raw2nifti import parrec2nii
 from behav2tsv import Pres2tsv
 from utils import check_executable
 
+
 class BIDSConstructor(object):
+    """
+    Object to convert datasets to BIDS format.
+
+    Attributes
+    ----------
+    project_dir : str
+        Path to project directory
+    cfg_file : str
+        Path to config-file.
+
+    Methods
+    -------
+    convert2bids()
+        Initialize renaming and conversion project to BIDS-format.
+
+    References
+    ----------
+
+    """
 
     def __init__(self, project_dir, cfg_file):
-        """ Initializes a BIDSConstructor object. """
+        """ Initializes a BIDSConstructor object.
+
+        Parameters
+        ----------
+        project_dir : str
+            Path to project directory
+        cfg_file : str
+            Path to config-file.
+        """
 
         self.project_dir = project_dir
-        self.cfg_file = cfg_file
-        self.dcm2niix = check_executable('dcm2niix')
-        self.edf2asc = check_executable('edf2asc')
-        self.sub_dirs = None
         self.cfg = None
-        self.mappings = None
-        self.debug = None
+        self._cfg_file = cfg_file
+        self._dcm2niix = check_executable('dcm2niix')
+        self._edf2asc = check_executable('edf2asc')
+        self._sub_dirs = None
+        self._mappings = None
+        self._debug = None
 
-        if not self.dcm2niix:
+        if not self._dcm2niix:
             msg = "The program 'dcm2niix' was not found on this computer; attempting to " \
                   "convert mri-files to nifti using nibabel."
             warnings.warn(msg)
 
-        if not self.edf2asc:
+        if not self._edf2asc:
             msg = "The program 'edf2asc' was not found on this computer; cannot convert " \
                   "edf-files!"
             warnings.warn(msg)
@@ -45,9 +73,9 @@ class BIDSConstructor(object):
         """ Method to call conversion process. """
 
         self._parse_cfg_file()
-        self.sub_dirs = glob(op.join(self.project_dir, 'sub*'))
+        self._sub_dirs = glob(op.join(self.project_dir, 'sub*'))
 
-        if not self.sub_dirs:
+        if not self._sub_dirs:
             msg = "Could not find subdirs in %s. " \
                   "Make sure they're named 'sub-<nr>.'" % self.project_dir
             raise ValueError(msg)
@@ -56,7 +84,7 @@ class BIDSConstructor(object):
             print("Performing back-up.")
             self._backup()
 
-        for sub_dir in self.sub_dirs:
+        for sub_dir in self._sub_dirs:
 
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
@@ -67,25 +95,28 @@ class BIDSConstructor(object):
                 # If there are no session dirs,  use sub_dir
                 sess_dirs = [sub_dir]
 
+            DTYPES = ['func', 'anat', 'dwi', 'fmap']
+
             for sess_dir in sess_dirs:
 
-                data_types = [c for c in self.cfg.keys() if c in ['func', 'anat', 'dwi', 'fmap']]
+                data_types = [c for c in self.cfg.keys() if c in DTYPES]
                 _ = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
                 _ = [self._transform(sess_dir, dtype) for dtype in data_types]
 
                 unalloc_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
+
                 if unalloc_files:
                     print('Unallocated files found in %s:' % sess_dir)
-                    _ = [print(f) for f in unalloc_files]
+                    print("\n".join(unalloc_files))
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
-        if not op.isfile(self.cfg_file):
-            msg = "Couldn't find config-file: %s" % self.cfg_file
+        if not op.isfile(self._cfg_file):
+            msg = "Couldn't find config-file: %s" % self._cfg_file
             raise IOError(msg)
 
-        with open(self.cfg_file) as config:
+        with open(self._cfg_file) as config:
             self.cfg = json.load(config, object_pairs_hook=OrderedDict)
 
         # Definition of sensible defaults
@@ -98,8 +129,9 @@ class BIDSConstructor(object):
         if not 'n_cores' in self.cfg['options']:
             self.cfg['options']['n_cores'] = -1
 
-        self.mappings = self.cfg['mappings']
-        self.debug = self.cfg['options']['debug']
+        # Set attributes for readability
+        self._mappings = self.cfg['mappings']
+        self._debug = self.cfg['options']['debug']
 
     def _backup(self):
         """ Backs up raw data into separate dir. """
@@ -114,6 +146,7 @@ class BIDSConstructor(object):
 
     def _move_and_rename(self, sess_dir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
+
         n_elem = len(self.cfg[dtype])
 
         if n_elem > 0:
@@ -147,7 +180,7 @@ class BIDSConstructor(object):
                 # Rename files according to mapping
 
                 types = []
-                for ftype, match in self.mappings.iteritems():
+                for ftype, match in self._mappings.iteritems():
                     match = '*' + match + '*'
 
                     if fnmatch.fnmatch(f, match):
@@ -170,6 +203,7 @@ class BIDSConstructor(object):
                 # so remove all unnecessary 'extensions'
                 allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle', 'json',
                                 'edf', 'log', 'bz2', 'tar']
+
                 upper_exts = [s.upper() for s in allowed_exts]
                 allowed_exts.extend(upper_exts)
 
@@ -177,14 +211,14 @@ class BIDSConstructor(object):
                 full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, clean_exts))
                 full_name = full_name.replace('_b0', '')
 
-                if self.debug:
+                if self._debug:
                     print("Renaming '%s' as '%s'" % (f, full_name))
 
                 os.rename(f, full_name)
 
     def _transform(self, sess_dir, dtype):
+        """ Transforms files to appropriate format (nii.gz or tsv). """
 
-        # Convert stuff to bids-compatible formats (e.g. nii.gz, .tsv, etc.)
         data_dir = op.join(sess_dir, dtype)
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
@@ -200,7 +234,7 @@ class BIDSConstructor(object):
     def _mri2nifti(self, directory, compress=True, n_cores=-1):
         """ Converts raw mri to nifti.gz. """
 
-        compress = False if self.debug else True
+        compress = False if self._debug else True
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
@@ -241,6 +275,9 @@ class BIDSConstructor(object):
             for log in logs:
                 plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
+        else:
+            warnings.warn("Conversion of logfiles other than type='Presentation" \
+                          " is not yet supported.")
 
     def _edf2tsv(self, directory):
 
@@ -249,7 +286,7 @@ class BIDSConstructor(object):
             edfs = glob(op.join(directory, '*%s*' % idf))
 
             if edfs:
-
+                # Yet to implement!
                 pass
 
     def _make_dir(self, path):
@@ -269,6 +306,20 @@ class BIDSConstructor(object):
         return files
 
 def fetch_example_data(directory=None, type='7T'):
+    """ Downloads sample data.
+
+    Parameters
+    ----------
+    directory : str
+        Path to desired directory where the data will be saved.
+    type : str
+        Either '7T' or '3T', depending on the desired dataset.
+
+    Returns
+    -------
+    out_file : str
+        Path to directory where the data is saved.
+    """
 
     if directory is None:
         directory = os.getcwd()
