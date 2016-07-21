@@ -81,8 +81,8 @@ class BIDSConstructor(object):
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
-        if not op.isfile(self.cfg):
-            msg = "Couldn't find config-file: %s" % self.cfg
+        if not op.isfile(self.cfg_file):
+            msg = "Couldn't find config-file: %s" % self.cfg_file
             raise IOError(msg)
 
         with open(self.cfg_file) as config:
