@@ -21,6 +21,7 @@ class Pres2tsv(object):
         self.verbose = verbose
         self.event_dir = event_dir
         self.cfg = None
+        self.cfg_loaded = False
         self.pulsecode = None
         self.df = None
         self.to_write = None
@@ -46,11 +47,35 @@ class Pres2tsv(object):
 
     def _convert_to_range(self):
 
-        self.cfg['con_codes'] = [range(c[0], c[1]) for c in self.cfg['con_codes']]
+        c_codes = []
+        for c in self.cfg['con_codes']:
+
+            if isinstance(c, (int, float, str)):
+                c_codes.append(c)
+
+            elif isinstance(c, list):
+
+                if all(isinstance(s, (str, unicode)) for s in c):
+                    c_codes.append(c)
+                elif all(isinstance(s, list) for s in c):
+
+                    tmp_codes = []
+
+                    for ci in c:
+
+                        tmp_codes.extend(range(ci[0], ci[1]))
+                    c_codes.append(tmp_codes)
+                else:
+                    c_codes.append(range(c[0], c[1]))
+
+        self.cfg['con_codes'] = c_codes
+        self.cfg_loaded = True
 
     def parse(self):
         self._load_task_info()
-        self._convert_to_range()
+
+        if not self.cfg_loaded:
+            self._convert_to_range()
 
         con_names = self.cfg['con_names']
         con_codes = self.cfg['con_codes']
@@ -80,6 +105,7 @@ class Pres2tsv(object):
         else:
             df = pd.read_table(f, sep='\t', skiprows=3,
                                skip_blank_lines=True)
+
         # Clean up unnecessary columns (use list-compr to check if col exists)
         to_drop = ['Uncertainty', 'Subject', 'Trial', 'Uncertainty.1', 'ReqTime',
                    'ReqDur', 'Stim Type', 'Pair Index']
@@ -105,24 +131,23 @@ class Pres2tsv(object):
 
             to_write = pd.DataFrame()
 
-            if type(code) == str:
+            if isinstance(code, (str, unicode)):
                 code = [code]
 
             if len(code) > 1:
-                # Code is list of integers
+                # Code is list of possibilities
                 if all(isinstance(c, int) for c in code):
                     idx = df['Code'].isin(code)
-                # Code is list of strings
-                elif all(isinstance(c, str) for c in code):
-                    idx = [any(c in x for c in code) if isinstance(x, str) else False for x in df['Code']]
+
+                elif all(isinstance(c, (str, unicode)) for c in code):
+                    idx = [any(c in x for c in code) if isinstance(x, (str, unicode)) else False for x in df['Code']]
                     idx = np.array(idx)
 
-            elif len(code) == 1 and type(code[0]) == str:
+            elif len(code) == 1 and isinstance(code[0], (str, unicode)):
                 # Code is single string
                 idx = [code[0] in x if type(x) == str else False for x in df['Code']]
                 idx = np.array(idx)
             else:
-                # Code is integer
                 idx = df['Code'] == code
 
             if idx.sum() == 0:

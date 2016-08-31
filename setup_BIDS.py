@@ -202,7 +202,7 @@ class BIDSConstructor(object):
                 # For some weird reason, people seem to use periods in filenames,
                 # so remove all unnecessary 'extensions'
                 allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle', 'json',
-                                'edf', 'log', 'bz2', 'tar']
+                                'edf', 'log', 'bz2', 'tar', 'phy']
 
                 upper_exts = [s.upper() for s in allowed_exts]
                 allowed_exts.extend(upper_exts)
@@ -231,6 +231,12 @@ class BIDSConstructor(object):
             dest = self._make_dir(op.join(sess_dir, 'fmap'))
             [shutil.move(tu, dest) for tu in topups]
 
+    def _compress(self, f):
+
+        with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        os.remove(f)
+
     def _mri2nifti(self, directory, compress=True, n_cores=-1):
         """ Converts raw mri to nifti.gz. """
 
@@ -248,11 +254,7 @@ class BIDSConstructor(object):
             niftis = self._glob(directory, ['.nii', '.nifti'])
 
             if niftis:
-                for f in niftis:
-                    with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-
-                _ = [os.remove(f) for f in niftis if op.exists(f)]
+                _ = [self._compress(f) for f in niftis]
 
         elif self.cfg['options']['mri_type'] == 'nifti-gz':
             pass
@@ -261,6 +263,14 @@ class BIDSConstructor(object):
             print('DICOM conversion not yet implemented!')
         else:
             print("'%s' conversion not yet supported!" % self.cfg['options']['mri_type'])
+
+        # Check for left-over uncoverted niftis
+        if compress:
+
+            niftis = self._glob(directory, ['.nii', '.nifti'])
+
+            if niftis:
+                _ = [self._compress(f) for f in niftis]
 
     def _log2tsv(self, directory, type='Presentation'):
         """ Converts behavioral logs to event_files. """

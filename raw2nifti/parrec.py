@@ -59,14 +59,15 @@ def parrec2nii(PAR_file, compress=True, backend='dcm2niix'):
         nib.nifti1.save(PR_obj, base_name)
 
     # Check for nifti-files (existing or newly created) and zip them.
-    to_compress = glob(op.join(base_dir, '*.nii'))
-    if compress:
-        for f in to_compress:
-            with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+    #to_compress = glob(op.join(base_dir, '*.nii'))
+    if ni_name and compress:
+        f = ni_name
+        with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
-        _ = [os.remove(f) for f in to_compress if op.exists(f)]
+        os.remove(f)
     _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+
 
 def _rename_b0_files(base_dir):
     """ Renames b0-files to phasediff and magnitude imgs.
