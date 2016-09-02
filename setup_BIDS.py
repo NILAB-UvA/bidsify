@@ -264,7 +264,7 @@ class BIDSConstructor(object):
         else:
             print("'%s' conversion not yet supported!" % self.cfg['options']['mri_type'])
 
-        # Check for left-over uncoverted niftis
+        # Check for left-over unconverted niftis
         if compress:
 
             niftis = self._glob(directory, ['.nii', '.nifti'])
@@ -311,7 +311,7 @@ class BIDSConstructor(object):
         files = []
 
         for w in wildcards:
-            files.extend(glob(op.join(path, '*%s*' % w)))
+            files.extend(glob(op.join(path, '*%s' % w)))
 
         return files
 
