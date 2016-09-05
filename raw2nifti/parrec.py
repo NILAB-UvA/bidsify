@@ -59,7 +59,6 @@ def parrec2nii(PAR_file, compress=True, backend='dcm2niix'):
         nib.nifti1.save(PR_obj, base_name)
 
     # Check for nifti-files (existing or newly created) and zip them.
-    #to_compress = glob(op.join(base_dir, '*.nii'))
     if ni_name and compress:
         f = ni_name
         with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
