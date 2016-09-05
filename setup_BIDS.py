@@ -136,10 +136,9 @@ class BIDSConstructor(object):
     def _backup(self):
         """ Backs up raw data into separate dir. """
 
-        dirs = [d for d in glob(op.join(self.project_dir, 'sub-*')) if op.isdir(d)]
         backup_dir = self._make_dir(op.join(self.project_dir, 'backup_raw'))
 
-        for d in dirs:
+        for d in self._sub_dirs:
             dest_dir = op.join(backup_dir, op.basename(d))
             if op.isdir(d) and not op.isdir(dest_dir):
                 shutil.copytree(d, dest_dir)
@@ -149,9 +148,8 @@ class BIDSConstructor(object):
 
         n_elem = len(self.cfg[dtype])
 
-        if n_elem > 0:
-            data_dir = self._make_dir(op.join(sess_dir, dtype))
-        else:
+        # TO DO: ONLY CREATE DIRECTORY IF THIS SUBJECT ACTUALLY HAS THE DTYPE FILES
+        if n_elem == 0:
             return 0
 
         # Loop over contents of func/anat/dwi/fieldmap
@@ -175,6 +173,9 @@ class BIDSConstructor(object):
 
             # Find files corresponding to func/anat/dwi/fieldmap
             files = glob(op.join(sess_dir, '*%s*' % idf))
+
+            if files:
+                data_dir = self._make_dir(op.join(sess_dir, dtype))
 
             for f in files:
                 # Rename files according to mapping
@@ -215,6 +216,7 @@ class BIDSConstructor(object):
                     print("Renaming '%s' as '%s'" % (f, full_name))
 
                 os.rename(f, full_name)
+                ftype = []
 
     def _transform(self, sess_dir, dtype):
         """ Transforms files to appropriate format (nii.gz or tsv). """
