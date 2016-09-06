@@ -4,20 +4,26 @@ import os.path as op
 import numpy as np
 import subprocess
 from glob import glob
+from ..utils import check_executable
 
 
 def parrec2nii(PAR_file, compress=True):
     """ Converts par/rec files to nifti.gz. """
 
-    # To do: refactor as class?
     base_dir = op.dirname(PAR_file)
     base_name = op.join(base_dir, op.splitext(PAR_file)[0])
     ni_name = base_name + '.nii.gz'
 
     REC_file = '%s.REC' % op.splitext(PAR_file)[0]
 
+    # Pigs is a fast compression algorithm that can be used by dcm2niix
+    pigz = check_executable('pigz')
+
     if compress:
-        cmd = ['dcm2niix', '-b', 'y', '-z', 'i', '-f', op.basename(base_name), PAR_file]
+        if pigz:
+            cmd = ['dcm2niix', '-b', 'y', '-z', 'y', '-f', op.basename(base_name), PAR_file]
+        else:
+            cmd = ['dcm2niix', '-b', 'y', '-z', 'i', '-f', op.basename(base_name), PAR_file]
     else:
         cmd = ['dcm2niix', '-b', 'y', '-f', op.basename(base_name), PAR_file]
 

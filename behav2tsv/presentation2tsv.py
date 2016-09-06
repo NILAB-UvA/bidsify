@@ -27,11 +27,6 @@ class Pres2tsv(object):
         self.to_write = None
         self.base_dir = None
 
-    def clean(self):
-        print('This should be implemented for a specific, subclassed crawler!')
-        # set self.df to cleaned dataframe
-        pass
-
     def _load_task_info(self):
         fn_pairs = op.basename(self.in_file).split('_')
         task_id = [p.split('-')[-1] for p in fn_pairs if 'task' in p][0]
@@ -39,11 +34,15 @@ class Pres2tsv(object):
         cfg_files = glob(op.join(self.event_dir, '*.json'))
         cfg = [c for c in cfg_files if task_id in c]
         if not cfg or len(cfg) > 1:
-            msg = 'Not a single task.json file found! Found: %r' % cfg
-            raise ValueError(msg)
+            msg = 'Not a single task.json file found! Found: %r. Skipping ...' % cfg
+            print(msg)
+            skip = True
+        else:
+            with open(cfg[0]) as tmp:
+                self.cfg = json.load(tmp)
+            skip = False
 
-        with open(cfg[0]) as tmp:
-            self.cfg = json.load(tmp)
+        return skip
 
     def _convert_to_range(self):
 
@@ -72,7 +71,10 @@ class Pres2tsv(object):
         self.cfg_loaded = True
 
     def parse(self):
-        self._load_task_info()
+
+        skip = self._load_task_info()
+        if skip:
+            return 0
 
         if not self.cfg_loaded:
             self._convert_to_range()

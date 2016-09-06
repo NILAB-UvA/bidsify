@@ -73,26 +73,21 @@ class BIDSConstructor(object):
         """ Method to call conversion process. """
 
         self._parse_cfg_file()
-        self._sub_dirs = glob(op.join(self.project_dir, 'sub*'))
+        self._sub_dirs = glob(op.join(self.project_dir, '%s*' % self.cfg['options']['subject_stem']))
 
         if not self._sub_dirs:
-            msg = "Could not find subdirs in %s. " \
-                  "Make sure they're named 'sub-<nr>.'" % self.project_dir
+            msg = "Could not find subdirs in %s." % self.project_dir
             raise ValueError(msg)
-
-        if self.cfg['options']['backup']:
-            print("Performing back-up.")
-            self._backup()
 
         for sub_dir in self._sub_dirs:
 
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
 
-            sess_dirs = glob(op.join(sub_dir, 'ses*'))
+            sess_dirs = glob(op.join(sub_dir, 'ses-*'))
 
             if not sess_dirs:
-                # If there are no session dirs,  use sub_dir
+                # If there are no session dirs, use sub_dir
                 sess_dirs = [sub_dir]
 
             DTYPES = ['func', 'anat', 'dwi', 'fmap']
@@ -100,8 +95,8 @@ class BIDSConstructor(object):
             for sess_dir in sess_dirs:
 
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
-                _ = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
-                _ = [self._transform(sess_dir, dtype) for dtype in data_types]
+                data_dir = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
+                _ = [self._transform(data_dir[0], dtype) for dtype in data_types]
 
                 unalloc_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
 
@@ -121,6 +116,7 @@ class BIDSConstructor(object):
 
         # Definition of sensible defaults
         if not 'backup' in self.cfg['options']:
+            # BACKUP OPTION IS NOW DEPRECATED
             self.cfg['options']['backup'] = 0
 
         if not 'mri_type' in self.cfg['options']:
@@ -129,26 +125,29 @@ class BIDSConstructor(object):
         if not 'n_cores' in self.cfg['options']:
             self.cfg['options']['n_cores'] = -1
 
+        if not 'subject_stem' in self.cfg['options']:
+            self.cfg['options']['subject_stem'] = 'sub'
+
+        if not 'out_dir' in self.cfg['options']:
+            self.cfg['options']['out_dir'] = op.join(self.project_dir, 'bids_converted')
+        else:
+            self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
+
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
         self._debug = self.cfg['options']['debug']
-
-    def _backup(self):
-        """ Backs up raw data into separate dir. """
-
-        backup_dir = self._make_dir(op.join(self.project_dir, 'backup_raw'))
-
-        for d in self._sub_dirs:
-            dest_dir = op.join(backup_dir, op.basename(d))
-            if op.isdir(d) and not op.isdir(dest_dir):
-                shutil.copytree(d, dest_dir)
+        self._out_dir = self.cfg['options']['out_dir']
 
     def _move_and_rename(self, sess_dir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
 
+        if not 'sub-' in sub_name:
+            nr = sub_name.split(self.cfg['options']['subject_stem'])[-1]
+            nr = nr.replace('-', '')
+            sub_name = 'sub-' + nr
+
         n_elem = len(self.cfg[dtype])
 
-        # TO DO: ONLY CREATE DIRECTORY IF THIS SUBJECT ACTUALLY HAS THE DTYPE FILES
         if n_elem == 0:
             return 0
 
@@ -172,10 +171,15 @@ class BIDSConstructor(object):
                     common_name += '_%s' % value
 
             # Find files corresponding to func/anat/dwi/fieldmap
-            files = glob(op.join(sess_dir, '*%s*' % idf))
+            files = [f for f in glob(op.join(sess_dir, '*%s*' % idf)) if op.isfile(f)]
+            if not files: # check one level lower
+                files = [f for f in glob(op.join(sess_dir, '*', '*%s*' % idf)) if op.isfile(f)]
 
             if files:
-                data_dir = self._make_dir(op.join(sess_dir, dtype))
+                if 'ses' in op.basename(sess_dir):
+                    data_dir = self._make_dir(op.join(self._out_dir, sub_name, op.basename(sess_dir), dtype))
+                else:
+                    data_dir = self._make_dir(op.join(self._out_dir, sub_name, dtype))
 
             for f in files:
                 # Rename files according to mapping
@@ -184,7 +188,7 @@ class BIDSConstructor(object):
                 for ftype, match in self._mappings.iteritems():
                     match = '*' + match + '*'
 
-                    if fnmatch.fnmatch(f, match):
+                    if fnmatch.fnmatch(op.basename(f), match):
                         types.append(ftype)
 
                 if len(types) > 1:
@@ -203,7 +207,8 @@ class BIDSConstructor(object):
                 # For some weird reason, people seem to use periods in filenames,
                 # so remove all unnecessary 'extensions'
                 allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle', 'json',
-                                'edf', 'log', 'bz2', 'tar', 'phy']
+                                'edf', 'log', 'bz2', 'tar', 'phy', 'cPickle', 'pkl',
+                                'jl', 'tsv', 'csv']
 
                 upper_exts = [s.upper() for s in allowed_exts]
                 allowed_exts.extend(upper_exts)
@@ -215,8 +220,11 @@ class BIDSConstructor(object):
                 if self._debug:
                     print("Renaming '%s' as '%s'" % (f, full_name))
 
-                os.rename(f, full_name)
+                shutil.copyfile(f, full_name)
+                #os.rename(f, full_name)
                 ftype = []
+
+        return op.dirname(data_dir)
 
     def _transform(self, sess_dir, dtype):
         """ Transforms files to appropriate format (nii.gz or tsv). """
