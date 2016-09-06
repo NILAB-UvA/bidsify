@@ -98,12 +98,6 @@ class BIDSConstructor(object):
                 data_dir = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
                 _ = [self._transform(data_dir[0], dtype) for dtype in data_types]
 
-                unalloc_files = [f for f in glob(op.join(sess_dir, '*')) if not op.isdir(f)]
-
-                if unalloc_files:
-                    print('Unallocated files found in %s:' % sess_dir)
-                    print("\n".join(unalloc_files))
-
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
@@ -220,8 +214,9 @@ class BIDSConstructor(object):
                 if self._debug:
                     print("Renaming '%s' as '%s'" % (f, full_name))
 
-                shutil.copyfile(f, full_name)
-                #os.rename(f, full_name)
+                if not op.isfile(full_name):
+                    shutil.copyfile(f, full_name)
+
                 ftype = []
 
         return op.dirname(data_dir)
@@ -254,7 +249,7 @@ class BIDSConstructor(object):
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, ) for pfile in PAR_files)
+            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress) for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'nifti':
             niftis = self._glob(directory, ['.nii', '.nifti'])

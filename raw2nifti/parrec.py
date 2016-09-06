@@ -16,6 +16,11 @@ def parrec2nii(PAR_file, compress=True):
 
     REC_file = '%s.REC' % op.splitext(PAR_file)[0]
 
+    if op.isfile(ni_name):
+        _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+        return 0
+
+
     # Pigs is a fast compression algorithm that can be used by dcm2niix
     pigz = check_executable('pigz')
 
@@ -51,13 +56,13 @@ def _rename_b0_files(base_dir):
         for i, b0_file in enumerate(b0_files[:-1]):
 
             if len(b0_files) > 2:
-                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude%i.nii' % (i + 1)
+                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude%i.nii.gz' % (i + 1)
             else:
-                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude.nii'
+                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude.nii.gz'
 
             os.rename(b0_file, new_name)
 
-        os.rename(b0_files[-1], b0_files[-1].replace('_ph', '')[:-9] + '_phasediff.nii')
+        os.rename(b0_files[-1], b0_files[-1].replace('_ph', '')[:-9] + '_phasediff.nii.gz')
 
     elif len(b0_files) == 1:
         new_name = b0_files[0].replace('_ph', '')
