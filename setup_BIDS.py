@@ -60,9 +60,9 @@ class BIDSConstructor(object):
         self._debug = None
 
         if not self._dcm2niix:
-            msg = "The program 'dcm2niix' was not found on this computer; attempting to " \
-                  "convert mri-files to nifti using nibabel."
-            warnings.warn(msg)
+            msg = "The program 'dcm2niix' was not found on this computer; install from neurodebian repository with "" \
+                  ""'apt-get install dcm2niix'. Aborting ..."
+            raise ValueError(msg)
 
         if not self._edf2asc:
             msg = "The program 'edf2asc' was not found on this computer; cannot convert " \
@@ -246,11 +246,7 @@ class BIDSConstructor(object):
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-
-            try:
-                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'dcm2niix') for pfile in PAR_files)
-            except KeyError:
-                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, 'nibabel') for pfile in PAR_files)
+            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, ) for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'nifti':
             niftis = self._glob(directory, ['.nii', '.nifti'])
@@ -288,7 +284,7 @@ class BIDSConstructor(object):
                 plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
         else:
-            warnings.warn("Conversion of logfiles other than type='Presentation" \
+            warnings.warn("Conversion of logfiles other than type='Presentation'" \
                           " is not yet supported.")
 
     def _edf2tsv(self, directory):
