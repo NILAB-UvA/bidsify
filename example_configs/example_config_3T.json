@@ -1,0 +1,63 @@
+{
+  "options": {
+
+    "backup": 1,
+    "mri_type": "parrec",
+    "log_type": "pickle",
+    "FS_dir": "",
+    "n_cores": -1,
+    "debug": 1
+
+  },
+
+  "mappings": {
+
+    "bold": "WIP_Loc1",
+    "physio": ".log",
+    "events": ".pickle",
+    "eyedata": ".edf",
+    "b0": "B0",
+    "T2w": "T2W",
+    "T1w": "T13D"
+
+  },
+
+
+  "func": {
+
+    "Localizer": {
+
+      "id": "Loc",
+      "task": "Localizer",
+      "acq": "",
+      "rec": "",
+      "run": ""
+
+    }
+
+  },
+
+  "fmap": {
+
+    "b0": {
+
+      "id": "B0"
+    }
+
+  },
+
+  "anat": {
+
+    "T2w": {
+
+      "id": "T2W"
+
+    },
+
+    "T1w": {
+
+      "id": "T13D"
+
+    }
+  }
+}

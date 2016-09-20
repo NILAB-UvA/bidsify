@@ -1,0 +1,115 @@
+{
+  "options": {
+
+    "backup": 1,
+    "mri_type": "nifti-gz",
+    "log_type": "pickle",
+    "FS_dir": "",
+    "n_cores": -1,
+    "debug": 0
+
+  },
+
+  "mappings": {
+
+    "bold": "d0462.nii.gz",
+    "topup": "topup*.nii.gz",
+    "physio": "SCANPHYSLOG",
+    "events": ".pickle",
+    "eyedata": ".edf",
+    "b0": "wipb0mapbrainV4-t00*.nii.gz"
+
+  },
+
+  "func": {
+
+    "Mapper_1": {
+
+      "id": "mapper1",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 1
+
+    },
+
+    "Mapper_2": {
+
+      "id": "mapper2",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 2
+
+    },
+
+    "Mapper_3": {
+
+      "id": "mapper3",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 3
+
+    },
+
+    "Mapper_4": {
+
+      "id": "mapper4",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 4
+
+    },
+ 
+    "Mapper_5": {
+
+      "id": "mapper5",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 5
+
+    },
+ 
+    "Mapper_6": {
+
+      "id": "mapper6",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 6
+
+    },
+
+    "Mapper_7": {
+
+      "id": "mapper7",
+      "task": "mapper",
+      "acq": "multiband",
+      "rec": "",
+      "run": 7
+
+    }
+  },
+
+  "fmap": {
+
+    "b0_mag": {
+
+      "id": "wipb0mapbrainV4-t000",
+      "mapping": "phasediff"
+    },
+
+    "b0_ph": {
+
+      "id": "wipb0mapbrainV4-t003",
+      "mapping": "magnitude"
+
+    }
+
+
+  }
+
+}
