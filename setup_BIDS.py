@@ -73,7 +73,7 @@ class BIDSConstructor(object):
         """ Method to call conversion process. """
 
         self._parse_cfg_file()
-        self._sub_dirs = glob(op.join(self.project_dir, '%s*' % self.cfg['options']['subject_stem']))
+        self._sub_dirs = sorted(glob(op.join(self.project_dir, '%s*' % self.cfg['options']['subject_stem'])))
 
         if not self._sub_dirs:
             msg = "Could not find subdirs in %s." % self.project_dir
@@ -174,6 +174,8 @@ class BIDSConstructor(object):
                     data_dir = self._make_dir(op.join(self._out_dir, sub_name, op.basename(sess_dir), dtype))
                 else:
                     data_dir = self._make_dir(op.join(self._out_dir, sub_name, dtype))
+            else:
+                data_dir = op.join(self._out_dir, sub_name, dtype)
 
             for f in files:
                 # Rename files according to mapping
