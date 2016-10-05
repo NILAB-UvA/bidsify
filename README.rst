@@ -1,4 +1,4 @@
-# BidsConverter - converts your (raw) data to the BIDS-format
+BidsConverter - converts your (raw) data to the BIDS-format
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
