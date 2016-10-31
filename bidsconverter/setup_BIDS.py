@@ -15,6 +15,7 @@ from glob import glob
 from joblib import Parallel, delayed
 from raw2nifti import parrec2nii
 from behav2tsv import Pres2tsv
+from physio import convert_phy
 from utils import check_executable
 
 
@@ -54,6 +55,7 @@ class BIDSConstructor(object):
         self.cfg = None
         self._cfg_file = cfg_file
         self._dcm2niix = check_executable('dcm2niix')
+        self._parrec2nii = check_executable('parrec2nii')
         self._edf2asc = check_executable('edf2asc')
         self._sub_dirs = None
         self._mappings = None
@@ -127,6 +129,9 @@ class BIDSConstructor(object):
         else:
             self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
 
+        if not 'parrec_converter' in     self.cfg['options']:
+            self.cfg['options']['parrec_converter'] = 'dcm2niix'
+
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
         self._debug = self.cfg['options']['debug']
@@ -166,7 +171,7 @@ class BIDSConstructor(object):
 
             # Find files corresponding to func/anat/dwi/fieldmap
             files = [f for f in glob(op.join(sess_dir, '*%s*' % idf)) if op.isfile(f)]
-            if not files: # check one level lower
+            if not files:  # check one level lower
                 files = [f for f in glob(op.join(sess_dir, '*', '*%s*' % idf)) if op.isfile(f)]
 
             if files:
@@ -230,6 +235,7 @@ class BIDSConstructor(object):
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
         self._edf2tsv(data_dir)
+        self._phys2tsv(data_dir)
 
         # Move topup files to fmap directory
         topups = glob(op.join(data_dir, '*_topup*'))
@@ -248,10 +254,12 @@ class BIDSConstructor(object):
         """ Converts raw mri to nifti.gz. """
 
         compress = False if self._debug else True
+        converter = self.cfg['options']['parrec_converter']
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress) for pfile in PAR_files)
+            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, converter)
+                                     for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'nifti':
             niftis = self._glob(directory, ['.nii', '.nifti'])
@@ -301,6 +309,14 @@ class BIDSConstructor(object):
             if edfs:
                 # Yet to implement!
                 pass
+
+    def _phys2tsv(self, directory):
+
+        idf = self.cfg['mappings']['physio']
+        phys = glob(op.join(directory, '*%s*' % idf))
+
+        if phys:
+            _ = [convert_phy(f) for f in phys]
 
     def _make_dir(self, path):
         """ Creates dir-if-not-exists-already. """

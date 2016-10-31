@@ -7,7 +7,7 @@ from glob import glob
 from ..utils import check_executable
 
 
-def parrec2nii(PAR_file, compress=True):
+def parrec2nii(PAR_file, converter, compress=True):
     """ Converts par/rec files to nifti.gz. """
 
     base_dir = op.dirname(PAR_file)
@@ -20,6 +20,24 @@ def parrec2nii(PAR_file, compress=True):
         _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
         return 0
 
+    cmd = _construct_conversion_cmd(base_name, PAR_file, converter, compress)
+    with open(os.devnull, 'w') as devnull:
+        subprocess.call(cmd, stdout=devnull)
+
+    _rename_b0_files(base_dir=base_dir)
+    _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+
+
+def _construct_conversion_cmd(base_name, PAR_file, converter, compress):
+
+    CONVERTERS = ['dcm2niix', 'parrec2nii']
+    if converter not in CONVERTERS:
+        raise ValueError("Unknown converter (%s) specified; please choose "
+                         "from: %r" % (converter, CONVERTERS))
+
+    if converter == 'parrec2nii':
+        cmd = ['parrec2nii', PAR_file, '-c', '-o', op.dirname(PAR_file)]
+        return cmd
 
     # Pigs is a fast compression algorithm that can be used by dcm2niix
     pigz = check_executable('pigz')
@@ -32,11 +50,7 @@ def parrec2nii(PAR_file, compress=True):
     else:
         cmd = ['dcm2niix', '-b', 'y', '-f', op.basename(base_name), PAR_file]
 
-    with open(os.devnull, 'w') as devnull:
-        subprocess.call(cmd, stdout=devnull)
-
-    _rename_b0_files(base_dir=base_dir)
-    _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+    return cmd
 
 
 def _rename_b0_files(base_dir):
