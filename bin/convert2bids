@@ -3,7 +3,7 @@
 import argparse
 import os
 import os.path as op
-from spynoza.BIDS_tools import BIDSConstructor
+from bidsconverter import BIDSConstructor
 
 parser = argparse.ArgumentParser(description='This is a command line tool to convert '
                                              'unstructured data-directories to a BIDS-compatible '
