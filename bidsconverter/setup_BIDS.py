@@ -9,6 +9,8 @@ import urllib
 import warnings
 import fnmatch
 import gzip
+import numpy as np
+import nibabel as nib
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -16,7 +18,7 @@ from joblib import Parallel, delayed
 from raw2nifti import parrec2nii
 from behav2tsv import Pres2tsv
 from physio import convert_phy
-from utils import check_executable
+from utils import check_executable, append_to_json
 
 
 class BIDSConstructor(object):
@@ -98,7 +100,9 @@ class BIDSConstructor(object):
 
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
                 data_dir = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
-                _ = [self._transform(data_dir[0], dtype) for dtype in data_types]
+                dtype_dirs = [self._transform(data_dir[0], dtype)
+                              for dtype in data_types]
+                _ = [self._extract_metadata(d) for d in dtype_dirs]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
@@ -129,8 +133,11 @@ class BIDSConstructor(object):
         else:
             self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
 
-        if not 'parrec_converter' in     self.cfg['options']:
+        if not 'parrec_converter' in self.cfg['options']:
             self.cfg['options']['parrec_converter'] = 'dcm2niix'
+
+        if not 'slice_order' in self.cfg['options']:
+            self.cfg['options']['slice_order'] = 'ascending'
 
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
@@ -176,9 +183,12 @@ class BIDSConstructor(object):
 
             if files:
                 if 'ses' in op.basename(sess_dir):
-                    data_dir = self._make_dir(op.join(self._out_dir, sub_name, op.basename(sess_dir), dtype))
+                    data_dir = self._make_dir(op.join(self._out_dir, sub_name,
+                                                      op.basename(sess_dir),
+                                                      dtype))
                 else:
-                    data_dir = self._make_dir(op.join(self._out_dir, sub_name, dtype))
+                    data_dir = self._make_dir(op.join(self._out_dir, sub_name,
+                                                      dtype))
             else:
                 data_dir = op.join(self._out_dir, sub_name, dtype)
 
@@ -207,15 +217,16 @@ class BIDSConstructor(object):
 
                 # For some weird reason, people seem to use periods in filenames,
                 # so remove all unnecessary 'extensions'
-                allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle', 'json',
-                                'edf', 'log', 'bz2', 'tar', 'phy', 'cPickle', 'pkl',
-                                'jl', 'tsv', 'csv']
+                allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle',
+                                'json', 'edf', 'log', 'bz2', 'tar', 'phy',
+                                'cPickle', 'pkl', 'jl', 'tsv', 'csv']
 
                 upper_exts = [s.upper() for s in allowed_exts]
                 allowed_exts.extend(upper_exts)
 
                 clean_exts = '.'.join([e for e in exts if e in allowed_exts])
-                full_name = op.join(data_dir, common_name + '_%s.%s' % (ftype, clean_exts))
+                full_name = op.join(data_dir, common_name + '_%s.%s' %
+                                    (ftype, clean_exts))
                 full_name = full_name.replace('_b0', '')
 
                 if self._debug:
@@ -235,7 +246,7 @@ class BIDSConstructor(object):
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
         self._edf2tsv(data_dir)
-        self._phys2tsv(data_dir)
+        self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
 
         # Move topup files to fmap directory
         topups = glob(op.join(data_dir, '*_topup*'))
@@ -243,6 +254,23 @@ class BIDSConstructor(object):
         if topups and dtype != 'fmap':
             dest = self._make_dir(op.join(sess_dir, 'fmap'))
             [shutil.move(tu, dest) for tu in topups]
+        return data_dir
+
+    def _extract_metadata(self, dtype_dir):
+        # TO DOOOOO
+        dtype = op.basename(dtype_dir)
+
+        if dtype == 'func':
+
+            func_files = glob(op.join(dtype_dir, '*_bold.nii.gz'))
+            TRs = [nib.load(f).header['pixdim'][4] for f in func_files]
+            n_slices = [nib.load(f).header.get_n_slices() for f in func_files]
+            slice_times = [np.linspace(0, TR, n_slice) for TR, n_slice
+                           in zip(TRs, n_slices)]
+            task_names = [op.basename(f).split('_')[1].split('-')[1]
+                          for f in func_files]
+
+
 
     def _compress(self, f):
 
@@ -258,7 +286,7 @@ class BIDSConstructor(object):
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, compress, converter)
+            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, converter, compress)
                                      for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'nifti':
@@ -310,13 +338,13 @@ class BIDSConstructor(object):
                 # Yet to implement!
                 pass
 
-    def _phys2tsv(self, directory):
+    def _phys2tsv(self, directory, n_cores=-1):
 
         idf = self.cfg['mappings']['physio']
         phys = glob(op.join(directory, '*%s*' % idf))
 
         if phys:
-            _ = [convert_phy(f) for f in phys]
+            Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
     def _make_dir(self, path):
         """ Creates dir-if-not-exists-already. """
@@ -333,6 +361,7 @@ class BIDSConstructor(object):
             files.extend(glob(op.join(path, '*%s' % w)))
 
         return files
+
 
 def fetch_example_data(directory=None, type='7T'):
     """ Downloads sample data.

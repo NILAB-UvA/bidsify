@@ -1,7 +1,6 @@
 from __future__ import print_function, division
 import os
 import os.path as op
-import numpy as np
 import subprocess
 from glob import glob
 from ..utils import check_executable
@@ -31,12 +30,17 @@ def parrec2nii(PAR_file, converter, compress=True):
 def _construct_conversion_cmd(base_name, PAR_file, converter, compress):
 
     CONVERTERS = ['dcm2niix', 'parrec2nii']
+
     if converter not in CONVERTERS:
         raise ValueError("Unknown converter (%s) specified; please choose "
                          "from: %r" % (converter, CONVERTERS))
 
     if converter == 'parrec2nii':
-        cmd = ['parrec2nii', PAR_file, '-c', '-o', op.dirname(PAR_file)]
+        cmd = ['parrec2nii', PAR_file, '-o', op.dirname(PAR_file)]
+
+        if compress:
+            cmd.append('-c')
+
         return cmd
 
     # Pigs is a fast compression algorithm that can be used by dcm2niix

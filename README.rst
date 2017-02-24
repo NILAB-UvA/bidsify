@@ -24,3 +24,8 @@ For now, it can only be installer from Github, by either cloning
 this repository directory or installing it using `pip`::
 
     $ pip install git+https://github.com/lukassnoek/BidsConverter.git@master
+
+I recommend installing the newest version of 'dcm2niix'
+(https://github.com/rordenlab/dcm2niix) if you need to convert PAR/REC and
+DICOM files. This should be the version from Github, which needs to be
+compiled (older versions do not seem to work with PAR/REC files).
