@@ -270,8 +270,6 @@ class BIDSConstructor(object):
             task_names = [op.basename(f).split('_')[1].split('-')[1]
                           for f in func_files]
 
-
-
     def _compress(self, f):
 
         with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
