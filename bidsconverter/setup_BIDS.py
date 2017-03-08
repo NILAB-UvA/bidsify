@@ -142,7 +142,7 @@ class BIDSConstructor(object):
         for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
 
             if option not in self.cfg['mappings'].keys():
-                self.cfg['mappings'][option] = ""
+                self.cfg['mappings'][option] = None
 
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
@@ -202,6 +202,12 @@ class BIDSConstructor(object):
 
                 types = []
                 for ftype, match in self._mappings.iteritems():
+
+                    # If e.g. no eyedata mapping, just skip it
+                    # This should be refactored!
+                    if match is None:
+                        continue
+
                     match = '*' + match + '*'
 
                     if fnmatch.fnmatch(op.basename(f), match):
