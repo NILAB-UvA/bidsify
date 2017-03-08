@@ -142,7 +142,7 @@ class BIDSConstructor(object):
         for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
 
             if option not in self.cfg['mappings'].keys():
-                self.cfg['mappings'][option] = None
+                self.cfg['mappings'][option] = ""
 
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
