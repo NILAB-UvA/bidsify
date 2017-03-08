@@ -245,8 +245,12 @@ class BIDSConstructor(object):
         data_dir = op.join(sess_dir, dtype)
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
-        self._edf2tsv(data_dir)
-        self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
+
+        if 'eyedata' in self._mappings.keys():
+            self._edf2tsv(data_dir)
+
+        if 'physio' in self._mappings.keys():
+            self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
 
         # Move topup files to fmap directory
         topups = glob(op.join(data_dir, '*_topup*'))
@@ -257,7 +261,8 @@ class BIDSConstructor(object):
         return data_dir
 
     def _extract_metadata(self, dtype_dir):
-        # TO DOOOOO
+        pass
+        """
         dtype = op.basename(dtype_dir)
 
         if dtype == 'func':
@@ -269,7 +274,7 @@ class BIDSConstructor(object):
                            in zip(TRs, n_slices)]
             task_names = [op.basename(f).split('_')[1].split('-')[1]
                           for f in func_files]
-
+        """
     def _compress(self, f):
 
         with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
