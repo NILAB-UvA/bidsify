@@ -139,7 +139,7 @@ class BIDSConstructor(object):
         if not 'slice_order' in self.cfg['options']:
             self.cfg['options']['slice_order'] = 'ascending'
 
-        for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0']:
+        for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
 
             if option not in self.cfg['mappings'].keys():
                 self.cfg['mappings'][option] = None
