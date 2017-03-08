@@ -62,10 +62,10 @@ class Pres2tsv(object):
 
                     for ci in c:
 
-                        tmp_codes.extend(range(ci[0], ci[1]))
+                        tmp_codes.extend(range(ci[0], ci[1] + 1))
                     c_codes.append(tmp_codes)
                 else:
-                    c_codes.append(range(c[0], c[1]))
+                    c_codes.append(range(c[0], c[1] + 1))
 
         self.cfg['con_codes'] = c_codes
         self.cfg_loaded = True
@@ -87,7 +87,7 @@ class Pres2tsv(object):
         try:
             pulsecode = self.cfg['pulsecode']
         except KeyError:
-            pulsecode = 30
+            pulsecode = 255
 
         if con_durations is not None:
 
@@ -133,7 +133,7 @@ class Pres2tsv(object):
 
             to_write = pd.DataFrame()
 
-            if isinstance(code, (str, unicode)):
+            if not isinstance(code, list):
                 code = [code]
 
             if len(code) > 1:
@@ -142,7 +142,9 @@ class Pres2tsv(object):
                     idx = df['Code'].isin(code)
 
                 elif all(isinstance(c, (str, unicode)) for c in code):
-                    idx = [any(c in x for c in code) if isinstance(x, (str, unicode)) else False for x in df['Code']]
+                    idx = [any(c in x for c in code) if isinstance(x, (str, unicode))
+                           else False for x in df['Code']]
+
                     idx = np.array(idx)
 
             elif len(code) == 1 and isinstance(code[0], (str, unicode)):
@@ -150,7 +152,7 @@ class Pres2tsv(object):
                 idx = [code[0] in x if type(x) == str else False for x in df['Code']]
                 idx = np.array(idx)
             else:
-                idx = df['Code'] == code
+                idx = df['Code'] == code[0]
 
             if idx.sum() == 0:
                 raise ValueError('No entries found for code: %r' % code)
