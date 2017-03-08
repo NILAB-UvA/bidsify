@@ -139,6 +139,11 @@ class BIDSConstructor(object):
         if not 'slice_order' in self.cfg['options']:
             self.cfg['options']['slice_order'] = 'ascending'
 
+        for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0']:
+
+            if option not in self.cfg['mappings'].keys():
+                self.cfg['mappings'][option] = None
+
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
         self._debug = self.cfg['options']['debug']
@@ -246,10 +251,10 @@ class BIDSConstructor(object):
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
 
-        if 'eyedata' in self._mappings.keys():
+        if self._mappings['eyedata'] is not None:
             self._edf2tsv(data_dir)
 
-        if 'physio' in self._mappings.keys():
+        if self._mappings['physio'] is not None:
             self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
 
         # Move topup files to fmap directory

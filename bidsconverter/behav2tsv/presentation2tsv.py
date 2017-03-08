@@ -34,7 +34,7 @@ class Pres2tsv(object):
         cfg_files = glob(op.join(self.event_dir, '*.json'))
         cfg = [c for c in cfg_files if task_id in c]
         if not cfg or len(cfg) > 1:
-            msg = 'Not a single task.json file found! Found: %r. Skipping ...' % cfg
+            msg = "Not a single {task}.json file found for task '%s'! Found: %r. Skipping ..." % (task_id, cfg)
             print(msg)
             skip = True
         else:
