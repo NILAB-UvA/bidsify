@@ -162,6 +162,7 @@ class BIDSConstructor(object):
         if n_elem == 0:
             return 0
 
+        unallocated = []
         # Loop over contents of func/anat/dwi/fieldmap
         for elem in self.cfg[dtype].keys():
 
@@ -173,7 +174,7 @@ class BIDSConstructor(object):
             # common_name is simply sub-xxx
             common_name = copy(sub_name)
 
-            for key, value in kv_pairs.iteritems():
+            for key, value in kv_pairs.items():
 
                 # Append key-value pair if it's not an empty string
                 if value and key != 'mapping':
@@ -183,6 +184,7 @@ class BIDSConstructor(object):
 
             # Find files corresponding to func/anat/dwi/fieldmap
             files = [f for f in glob(op.join(sess_dir, '*%s*' % idf)) if op.isfile(f)]
+
             if not files:  # check one level lower
                 files = [f for f in glob(op.join(sess_dir, '*', '*%s*' % idf)) if op.isfile(f)]
 
@@ -218,10 +220,11 @@ class BIDSConstructor(object):
                           "following:\n %r" % (f, types)
                     warnings.warn(msg)
                 elif len(types) == 1:
-                    ftype = types[0]
+                    filetype = types[0]
                 else:
+                    unallocated.append(f)
                     # No file found; ends up in unallocated (printed later).
-                    pass
+                    continue
 
                 # Create full name as common_name + unique filetype + original extension
                 exts = f.split('.')[1:]
@@ -237,7 +240,7 @@ class BIDSConstructor(object):
 
                 clean_exts = '.'.join([e for e in exts if e in allowed_exts])
                 full_name = op.join(data_dir, common_name + '_%s.%s' %
-                                    (ftype, clean_exts))
+                                    (filetype, clean_exts))
                 full_name = full_name.replace('_b0', '')
 
                 if self._debug:
@@ -246,7 +249,9 @@ class BIDSConstructor(object):
                 if not op.isfile(full_name):
                     shutil.copyfile(f, full_name)
 
-                ftype = []
+        if unallocated:
+            print('Unallocated files for %s:' % sub_name)
+            print('\n'.join(unallocated))
 
         return op.dirname(data_dir)
 
@@ -375,70 +380,3 @@ class BIDSConstructor(object):
             files.extend(glob(op.join(path, '*%s' % w)))
 
         return files
-
-
-def fetch_example_data(directory=None, type='7T'):
-    """ Downloads sample data.
-
-    Parameters
-    ----------
-    directory : str
-        Path to desired directory where the data will be saved.
-    type : str
-        Either '7T' or '3T', depending on the desired dataset.
-
-    Returns
-    -------
-    out_file : str
-        Path to directory where the data is saved.
-    """
-
-    if directory is None:
-        directory = os.getcwd()
-
-    if type == '7T':
-        url = "https://surfdrive.surf.nl/files/index.php/s/Lc6pvD0mK6ZNZKo/download"
-        # Have to use _new extension because Surfdrive won't let me remove files (argh)
-        out_file = op.join(directory, 'testdata_%s_new.zip' % type)
-        size_msg = """ The file you will download is ~1.8 GB; do you want to continue? (Y / N): """
-    elif type == '3T':
-        url = "https://surfdrive.surf.nl/files/index.php/s/prfv4mh2ft01LSN/download"
-        out_file = op.join(directory, 'testdata_%s.zip' % type)
-        size_msg = """ The file you will download is ~120 MB; do you want to continue? (Y / N): """
-    else:
-        msg = "Specify for type either '7T' or '3T'"
-        raise ValueError(msg)
-
-    if op.exists(out_file):
-        return 'Already downloaded!'
-
-    resp = raw_input(size_msg)
-
-    if resp in ['Y', 'y', 'yes', 'Yes']:
-        print('Downloading test data (%s) ...' % type, end='')
-
-        out_dir = op.dirname(out_file)
-        if not op.isdir(out_dir):
-            os.makedirs(out_dir)
-
-        if not op.exists(out_file):
-            urllib.urlretrieve(url, out_file)
-
-        with open(os.devnull, 'w') as devnull:
-            subprocess.call(['unzip', out_file, '-d', out_dir], stdout=devnull)
-            subprocess.call(['rm', out_file], stdout=devnull)
-
-            print(' done.')
-
-        out_file = op.join(out_dir, op.basename(out_file[:-4]))
-        print('Data is located at: %s' % out_file)
-
-    elif resp in ['N', 'n', 'no', 'No']:
-        print('Aborting download.')
-    else:
-        print('Invalid answer! Choose Y or N.')
-
-    return out_file
-
-
-
