@@ -87,11 +87,13 @@ class BIDSConstructor(object):
 
             if not sess_dirs:
                 # If there are no session dirs, use sub_dir
-                sess_dirs = [sub_dir]
+                cdirs = [sub_dir]
+            else:
+                cdirs = sess_dirs
 
             DTYPES = ['func', 'anat', 'dwi', 'fmap']
 
-            for sess_dir in sess_dirs:
+            for cdir in cdirs:
 
                 overwrite = self.cfg['options']['overwrite']
                 already_exists = op.isdir(op.join(self.cfg['options']['out_dir'],
@@ -102,7 +104,7 @@ class BIDSConstructor(object):
                     continue
 
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
-                data_dir = [self._move_and_rename(sess_dir, dtype, sub_name)
+                data_dir = [self._move_and_rename(cdir, dtype, sub_name)
                             for dtype in data_types]
                 dtype_dirs = [self._transform(data_dir[0], dtype)
                               for dtype in data_types]
