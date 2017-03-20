@@ -95,8 +95,10 @@ class BIDSConstructor(object):
 
                 overwrite = self.cfg['options']['overwrite']
                 already_exists = op.isdir(op.join(self.cfg['options']['out_dir'],
-                                                  sess_dir))
+                                                  sub_name))
+
                 if already_exists and not overwrite:
+                    print('%s already converted - skipping ...' % sub_name)
                     continue
 
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
