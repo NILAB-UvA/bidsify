@@ -4,13 +4,9 @@ import json
 import os
 import os.path as op
 import shutil
-import subprocess
-import urllib
 import warnings
 import fnmatch
 import gzip
-import numpy as np
-import nibabel as nib
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -78,7 +74,6 @@ class BIDSConstructor(object):
 
         self._parse_cfg_file()
         self._sub_dirs = sorted(glob(op.join(self.project_dir, '%s*' % self.cfg['options']['subject_stem'])))
-
         if not self._sub_dirs:
             msg = "Could not find subdirs in %s." % self.project_dir
             raise ValueError(msg)
@@ -98,8 +93,15 @@ class BIDSConstructor(object):
 
             for sess_dir in sess_dirs:
 
+                overwrite = self.cfg['options']['overwrite']
+                already_exists = op.isdir(op.join(self.cfg['options']['out_dir'],
+                                                  sess_dir))
+                if already_exists and not overwrite:
+                    continue
+
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
-                data_dir = [self._move_and_rename(sess_dir, dtype, sub_name) for dtype in data_types]
+                data_dir = [self._move_and_rename(sess_dir, dtype, sub_name)
+                            for dtype in data_types]
                 dtype_dirs = [self._transform(data_dir[0], dtype)
                               for dtype in data_types]
                 _ = [self._extract_metadata(d) for d in dtype_dirs]
@@ -114,11 +116,6 @@ class BIDSConstructor(object):
         with open(self._cfg_file) as config:
             self.cfg = json.load(config, object_pairs_hook=OrderedDict)
 
-        # Definition of sensible defaults
-        if not 'backup' in self.cfg['options']:
-            # BACKUP OPTION IS NOW DEPRECATED
-            self.cfg['options']['backup'] = 0
-
         if not 'mri_type' in self.cfg['options']:
             self.cfg['options']['mri_type'] = 'parrec'
 
@@ -132,6 +129,9 @@ class BIDSConstructor(object):
             self.cfg['options']['out_dir'] = op.join(self.project_dir, 'bids_converted')
         else:
             self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
+
+        if not 'overwrite' in self.cfg['options']:
+            self.cfg['options']['overwrite'] = False
 
         if not 'parrec_converter' in self.cfg['options']:
             self.cfg['options']['parrec_converter'] = 'dcm2niix'
@@ -344,7 +344,7 @@ class BIDSConstructor(object):
                 plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
         else:
-            warnings.warn("Conversion of logfiles other than type='Presentation'" \
+            warnings.warn("Conversion of logfiles other than type='Presentation'"
                           " is not yet supported.")
 
     def _edf2tsv(self, directory):
