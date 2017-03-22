@@ -83,6 +83,8 @@ class BIDSConstructor(object):
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
 
+            out_dir = self.cfg['options']['out_dir']
+
             # Important: to find session-dirs, they should be named
             # ses-something
             sess_dirs = glob(op.join(sub_dir, 'ses-*'))
@@ -97,12 +99,14 @@ class BIDSConstructor(object):
 
             for cdir in cdirs:
 
+                if 'ses-' in op.basename(cdir):
+                    out_dir = op.join(out_dir, op.basename(cdir))
+
                 overwrite = self.cfg['options']['overwrite']
-                already_exists = op.isdir(op.join(self.cfg['options']['out_dir'],
-                                                  sub_name))
+                already_exists = op.isdir(out_dir)
 
                 if already_exists and not overwrite:
-                    print('%s already converted - skipping ...' % sub_name)
+                    print('%s already converted - skipping ...' % out_dir)
                     continue
 
                 # If it doesn't exist yet, start conversion
@@ -180,13 +184,14 @@ class BIDSConstructor(object):
             # common_name is simply sub-xxx
             common_name = copy(sub_name)
 
+            # Add session-id pair to name if there are sessions!
+            if 'ses-' in op.basename(cdir):
+                sess_id = op.basename(cdir).split('ses-')[-1]
+                common_name += '_%s-%s' % ('ses', sess_id)
+
             for key, value in kv_pairs.items():
 
-                # Add session-id pair to name if there are sessions!
-                if 'ses-' in op.basename(cdir):
-                    sess_id = op.basename(cdir).split('ses-')[-1]
-                    common_name += '_%s-%s' % ('ses', sess_id)
-                
+
                 # Append key-value pair if it's not an empty string
                 if value and key != 'mapping':
                     common_name += '_%s-%s' % (key, value)
