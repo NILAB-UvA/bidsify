@@ -83,6 +83,8 @@ class BIDSConstructor(object):
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
 
+            # Important: to find session-dirs, they should be named
+            # ses-something
             sess_dirs = glob(op.join(sub_dir, 'ses-*'))
 
             if not sess_dirs:
@@ -103,11 +105,10 @@ class BIDSConstructor(object):
                     print('%s already converted - skipping ...' % sub_name)
                     continue
 
+                # If it doesn't exist yet, start conversion
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
-                data_dir = [self._move_and_rename(cdir, dtype, sub_name)
-                            for dtype in data_types]
-                dtype_dirs = [self._transform(data_dir[0], dtype)
-                              for dtype in data_types]
+                data_dir = [self._move_and_rename(cdir, dtype, sub_name) for dtype in data_types]
+                dtype_dirs = [self._transform(data_dir[0], dtype) for dtype in data_types]
                 _ = [self._extract_metadata(d) for d in dtype_dirs]
 
     def _parse_cfg_file(self):
@@ -153,12 +154,13 @@ class BIDSConstructor(object):
         self._debug = self.cfg['options']['debug']
         self._out_dir = self.cfg['options']['out_dir']
 
-    def _move_and_rename(self, sess_dir, dtype, sub_name):
+    def _move_and_rename(self, cdir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
 
         if not 'sub-' in sub_name:
             nr = sub_name.split(self.cfg['options']['subject_stem'])[-1]
-            nr = nr.replace('-', '')
+            nr = nr.replace('-', '')  # remove unnecessary delimiters
+            nr = nr.replace('_', '')
             sub_name = 'sub-' + nr
 
         n_elem = len(self.cfg[dtype])
@@ -180,6 +182,11 @@ class BIDSConstructor(object):
 
             for key, value in kv_pairs.items():
 
+                # Add session-id pair to name if there are sessions!
+                if 'ses-' in op.basename(cdir):
+                    sess_id = op.basename(cdir).split('ses-')[-1]
+                    common_name += '_%s-%s' % ('ses', sess_id)
+                
                 # Append key-value pair if it's not an empty string
                 if value and key != 'mapping':
                     common_name += '_%s-%s' % (key, value)
@@ -187,15 +194,15 @@ class BIDSConstructor(object):
                     common_name += '_%s' % value
 
             # Find files corresponding to func/anat/dwi/fieldmap
-            files = [f for f in glob(op.join(sess_dir, '*%s*' % idf)) if op.isfile(f)]
+            files = [f for f in glob(op.join(cdir, '*%s*' % idf)) if op.isfile(f)]
 
             if not files:  # check one level lower
-                files = [f for f in glob(op.join(sess_dir, '*', '*%s*' % idf)) if op.isfile(f)]
+                files = [f for f in glob(op.join(cdir, '*', '*%s*' % idf)) if op.isfile(f)]
 
             if files:
-                if 'ses' in op.basename(sess_dir):
+                if 'ses-' in op.basename(cdir):
                     data_dir = self._make_dir(op.join(self._out_dir, sub_name,
-                                                      op.basename(sess_dir),
+                                                      op.basename(cdir),
                                                       dtype))
                 else:
                     data_dir = self._make_dir(op.join(self._out_dir, sub_name,
