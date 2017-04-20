@@ -101,7 +101,14 @@ class BIDSConstructor(object):
 
                 if 'ses-' in op.basename(cdir):
                     out_dir = op.join(out_dir, op.basename(cdir))
-
+                else:
+                    if not 'sub-' in sub_name:
+                        nr = sub_name.split(self.cfg['options']['subject_stem'])[-1]
+                        nr = nr.replace('-', '')  # remove unnecessary delimiters
+                        nr = nr.replace('_', '')
+                        sub_name = 'sub-' + nr
+                    out_dir = op.join(out_dir, sub_name)
+                    
                 overwrite = self.cfg['options']['overwrite']
                 already_exists = op.isdir(out_dir)
 
