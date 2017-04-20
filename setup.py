@@ -7,7 +7,7 @@ REQUIREMENTS = [
     'scikit-learn>=0.17',
     'pandas>=0.17',
     'nibabel>=2.0',
-    'joblib>=0.9'
+    'joblib'
 ]
 
 VERSION = bidsconverter.__version__
