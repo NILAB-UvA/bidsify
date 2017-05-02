@@ -11,10 +11,10 @@ from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
 from joblib import Parallel, delayed
-from raw2nifti import parrec2nii
-from behav2tsv import Pres2tsv
-from physio import convert_phy
-from utils import check_executable, append_to_json
+from .raw2nifti import parrec2nii
+from .behav2tsv import Pres2tsv
+from .physio import convert_phy
+from .utils import check_executable, append_to_json
 
 
 class BIDSConstructor(object):
@@ -226,7 +226,7 @@ class BIDSConstructor(object):
                 # Rename files according to mapping
 
                 types = []
-                for ftype, match in self._mappings.iteritems():
+                for ftype, match in self._mappings.items():
 
                     # If e.g. no eyedata mapping, just skip it
                     # This should be refactored!

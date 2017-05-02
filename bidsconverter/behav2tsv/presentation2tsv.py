@@ -172,7 +172,7 @@ class Pres2tsv(object):
                 to_write['duration'] = [con_durations[i]] * idx.sum()
 
             to_write['weight'] = np.ones((np.sum(idx), 1))
-            to_write['trail_type'] = [con_names[i] for j in range(idx.sum())]
+            to_write['trial_type'] = [con_names[i] for j in range(idx.sum())]
 
             df_list.append(pd.DataFrame(to_write))
 

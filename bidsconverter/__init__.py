@@ -1,4 +1,4 @@
-from setup_BIDS import BIDSConstructor
+from .setup_BIDS import BIDSConstructor
 
 __version__ = '0.1'
 
