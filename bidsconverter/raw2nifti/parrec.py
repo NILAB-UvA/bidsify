@@ -3,7 +3,7 @@ import os
 import os.path as op
 import subprocess
 from glob import glob
-from ..utils import check_executable
+from ..utils import check_executable, append_to_json
 
 
 def parrec2nii(PAR_file, converter, compress=True):
@@ -61,14 +61,21 @@ def _rename_b0_files(base_dir):
     """ Renames b0-files to phasediff and magnitude imgs.
 
     IMPORTANT: assumes one phasediff and one magnitude img,
-    or optionally >1 magnitudes imgs (but not >1 phasediff img).
+    or optionally >1 magnitudes imgs (but not >1 phase img).
     """
+
+    ECHO_TIMES = {'EchoTime1': 0.003,
+                  'EchoTime2': 0.008}
 
     jsons = glob(op.join(base_dir, '_ph*.json'))
     if jsons:
-        _ = [os.rename(f, f.replace('_ph', '')) for f in jsons]
 
-    b0_files = sorted(glob(op.join(base_dir, '_ph*.nii.gz')))
+        jsonsnew = [f.replace('_ph', '').replace('.json', '_phasediff.json') for f in jsons]
+        _ = [os.rename(f, fnew) for f, fnew in zip(jsons, jsonsnew)]
+        for json in jsonsnew:
+            append_to_json(json, ECHO_TIMES)
+
+    b0_files = sorted(glob(op.join(base_dir, '*_ph*.nii.gz')))
     if len(b0_files) > 1:
 
         for i, b0_file in enumerate(b0_files[:-1]):

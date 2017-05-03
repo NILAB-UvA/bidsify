@@ -64,11 +64,6 @@ class BIDSConstructor(object):
                   ""'apt-get install dcm2niix'. Aborting ..."
             raise ValueError(msg)
 
-        if not self._edf2asc:
-            msg = "The program 'edf2asc' was not found on this computer; cannot convert " \
-                  "edf-files!"
-            warnings.warn(msg)
-
     def convert2bids(self):
         """ Method to call conversion process. """
 
@@ -120,7 +115,7 @@ class BIDSConstructor(object):
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
                 data_dir = [self._move_and_rename(cdir, dtype, sub_name) for dtype in data_types]
                 dtype_dirs = [self._transform(data_dir[0], dtype) for dtype in data_types]
-                _ = [self._extract_metadata(d) for d in dtype_dirs]
+                #_ = [self._extract_metadata(d) for d in dtype_dirs]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
@@ -265,6 +260,7 @@ class BIDSConstructor(object):
                 full_name = op.join(data_dir, common_name + '_%s.%s' %
                                     (filetype, clean_exts))
                 full_name = full_name.replace('_b0', '')
+                full_name = full_name.replace('_B0', '')
 
                 if self._debug:
                     print("Renaming '%s' as '%s'" % (f, full_name))

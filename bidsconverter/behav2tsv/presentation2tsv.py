@@ -1,11 +1,14 @@
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 import os
 import os.path as op
 import json
 import pandas as pd
 import numpy as np
 from glob import glob
-from copy import copy, deepcopy
+from numbers import Number
+
+NUM_TYPE = (np.float64, np.float32, np.float, np.int, np.int64, np.int16, float, int)
+
 
 class Pres2tsv(object):
     """ Parses a Presentation logfile.
@@ -49,29 +52,27 @@ class Pres2tsv(object):
         c_codes = []
         for c in self.cfg['con_codes']:
 
-            if isinstance(c, (int, float, str)):
+            if not isinstance(c, list):
                 c_codes.append(c)
 
             elif isinstance(c, list):
 
-                if all(isinstance(s, (str, unicode)) for s in c):
+                if all(isinstance(s, str) for s in c):
                     c_codes.append(c)
                 elif all(isinstance(s, list) for s in c):
 
                     tmp_codes = []
 
                     for ci in c:
-
-                        tmp_codes.extend(range(ci[0], ci[1] + 1))
+                        tmp_codes.extend(np.arange(ci[0], ci[1] + 1), dtype=np.int)
                     c_codes.append(tmp_codes)
                 else:
-                    c_codes.append(range(c[0], c[1] + 1))
+                    c_codes.append(np.arange(c[0], c[1] + 1, dtype=np.int))
 
         self.cfg['con_codes'] = c_codes
         self.cfg_loaded = True
 
     def parse(self):
-
         skip = self._load_task_info()
         if skip:
             return 0
@@ -129,25 +130,25 @@ class Pres2tsv(object):
         df_list = []
 
         # Loop over condition-codes to find indices/times/durations
-        for i, code in enumerate(con_codes):
 
+        for i, code in enumerate(con_codes):
             to_write = pd.DataFrame()
 
-            if not isinstance(code, list):
+            if not isinstance(code, (list, np.ndarray)):
                 code = [code]
 
             if len(code) > 1:
                 # Code is list of possibilities
-                if all(isinstance(c, int) for c in code):
+                if all(isinstance(c, NUM_TYPE) for c in code):
                     idx = df['Code'].isin(code)
 
-                elif all(isinstance(c, (str, unicode)) for c in code):
-                    idx = [any(c in x for c in code) if isinstance(x, (str, unicode))
+                elif all(isinstance(c, str) for c in code):
+                    idx = [any(c in x for c in code) if isinstance(x, str)
                            else False for x in df['Code']]
 
                     idx = np.array(idx)
 
-            elif len(code) == 1 and isinstance(code[0], (str, unicode)):
+            elif len(code) == 1 and isinstance(code[0], str):
                 # Code is single string
                 idx = [code[0] in x if type(x) == str else False for x in df['Code']]
                 idx = np.array(idx)
@@ -172,7 +173,7 @@ class Pres2tsv(object):
                 to_write['duration'] = [con_durations[i]] * idx.sum()
 
             to_write['weight'] = np.ones((np.sum(idx), 1))
-            to_write['trial_type'] = [con_names[i] for j in range(idx.sum())]
+            to_write['trial_type'] = [con_names[i] for j in np.arange(idx.sum())]
 
             df_list.append(pd.DataFrame(to_write))
 
