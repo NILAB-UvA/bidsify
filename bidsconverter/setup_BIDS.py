@@ -117,7 +117,9 @@ class BIDSConstructor(object):
                 data_types = [c for c in self.cfg.keys() if c in DTYPES]
                 data_dir = [self._move_and_rename(cdir, dtype, sub_name) for dtype in data_types]
                 dtype_dirs = [self._transform(data_dir[0], dtype) for dtype in data_types]
-                _ = [self._extract_metadata(d) for d in dtype_dirs]
+
+                if len(dtype_dirs) > 0:
+                    self._extract_metadata(op.dirname(dtype_dirs[0]))
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
@@ -297,22 +299,28 @@ class BIDSConstructor(object):
             [shutil.move(tu, dest) for tu in topups]
         return data_dir
 
-    def _extract_metadata(self, dtype_dir):
+    def _extract_metadata(self, sdir):
 
         # Append TaskName
-        func_jsons = sorted(glob(op.join(dtype_dir, '*task-*bold.json')))
+        func_jsons = sorted(glob(op.join(sdir, '*', '*task-*bold.json')))
         task_names = [op.basename(j).split('task-')[1].split('_')[0] for j in func_jsons]
         _ = [append_to_json(j, {'TaskName': taskn})
              for j, taskn in zip(func_jsons, task_names)]
 
-        func_files = sorted(glob(op.join(dtype_dir, '*_bold.nii.gz')))
+        # Append slicetime info
+        func_files = sorted(glob(op.join(sdir, '*', '*_bold.nii.gz')))
         TRs = [nib.load(f).header['pixdim'][4] for f in func_files]
         n_slices = [nib.load(f).header['dim'][3] for f in func_files]
         slice_times = [np.linspace(0, TR, n_slice) for TR, n_slice
                        in zip(TRs, n_slices)]
         _ = [append_to_json(j, {'SliceEncodingDirection': 'k',
-                                 'SliceTiming': slice_time.tolist()})
+                                'SliceTiming': slice_time.tolist()})
              for j, slice_time in zip(func_jsons, slice_times)]
+
+        # Append IntendedFor info to B0 jsons
+        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*phasediff.json')))
+        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files]}
+        _ = [append_to_json(j, to_append) for j in fmap_jsons]
 
     def _compress(self, f):
 
