@@ -80,11 +80,7 @@ def _rename_b0_files(base_dir):
 
         for i, b0_file in enumerate(b0_files[:-1]):
 
-            if len(b0_files) > 2:
-                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude%i.nii.gz' % (i + 1)
-            else:
-                new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude.nii.gz'
-
+            new_name = b0_file.replace('_ph', '')[:-9] + '_magnitude%i.nii.gz' % (i + 1)
             os.rename(b0_file, new_name)
 
         os.rename(b0_files[-1], b0_files[-1].replace('_ph', '')[:-9] + '_phasediff.nii.gz')
