@@ -106,7 +106,7 @@ class Pres2tsv(object):
         if self.df is not None:
             df = self.df
         else:
-            df = pd.read_table(f, sep='\t', skiprows=3,
+            df = pd.read_table(f, sep=str('\t'), skiprows=3,
                                skip_blank_lines=True)
 
         # Clean up unnecessary columns (use list-compr to check if col exists)
