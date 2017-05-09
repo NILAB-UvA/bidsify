@@ -179,5 +179,5 @@ class Pres2tsv(object):
 
         df = pd.concat(df_list).sort_values(by='onset', axis=0)
         fn = op.join(op.dirname(f), op.splitext(op.basename(f))[0])
-        df.to_csv(fn + '.tsv', sep='\t', index=None)
+        df.to_csv(fn + '.tsv', sep=str('\t'), index=None)
         os.remove(self.in_file)
