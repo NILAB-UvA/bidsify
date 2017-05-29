@@ -127,6 +127,8 @@ class Pres2tsv(object):
         df['Time'] = (df['Time'] - float(pulse_t)) / 10000.0
         df['Duration'] = df['Duration'] / 10000.0
 
+        if 'event_type' in self.cfg.keys():
+            df = df[df['Event Type'] == self.cfg['event_type']]
         df_list = []
 
         # Loop over condition-codes to find indices/times/durations
