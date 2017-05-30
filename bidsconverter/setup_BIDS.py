@@ -9,6 +9,7 @@ import fnmatch
 import gzip
 import nibabel as nib
 import numpy as np
+import warnings
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -63,8 +64,8 @@ class BIDSConstructor(object):
 
         if not self._dcm2niix:
             msg = "The program 'dcm2niix' was not found on this computer; install from neurodebian repository with "" \
-                  ""'apt-get install dcm2niix'. Aborting ..."
-            raise ValueError(msg)
+                  ""'apt-get install dcm2niix', otherwise we can't convert par/rec (or dicom) to nifti!"
+            warnings.warn(msg)
 
     def convert2bids(self):
         """ Method to call conversion process. """
@@ -318,8 +319,9 @@ class BIDSConstructor(object):
              for j, slice_time in zip(func_jsons, slice_times)]
 
         # Append IntendedFor info to B0 jsons
-        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*phasediff.json')))
-        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files]}
+        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*fieldmap.json')))
+        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files],
+                     'Units': 'Hz'}
         _ = [append_to_json(j, to_append) for j in fmap_jsons]
 
     def _compress(self, f):
@@ -336,8 +338,10 @@ class BIDSConstructor(object):
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, converter, compress)
-                                     for pfile in PAR_files)
+            epi_yes_no = [self._mappings['bold'] in p or self._mappings['dwi'] in p
+                          for p in PAR_files]
+            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, converter, epi, compress)
+                                     for pfile, epi in zip(PAR_files, epi_yes_no))
 
         elif self.cfg['options']['mri_type'] == 'nifti':
             niftis = self._glob(directory, ['.nii', '.nifti'])

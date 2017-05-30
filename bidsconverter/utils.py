@@ -36,6 +36,8 @@ def append_to_json(json_path, to_append):
             metadata = json.load(metadata_file)
             metadata.update(to_append)  # note: this overwrites if key exists!
     else:
+        msg = "Constructing new meta-data json (%s)" % json_path
+        print(msg)
         metadata = to_append
 
     with open(json_path, 'w') as new_metadata_file:
