@@ -10,7 +10,12 @@ from ..utils import check_executable, append_to_json
 def parrec2nii(PAR_file, converter, is_epi, compress=True):
     """ Converts par/rec files to nifti.gz. """
 
-    par_header = nib.load(PAR_file).header.general_info
+    try:
+        par_header = nib.load(PAR_file).header.general_info
+        extract_md = True
+    except:
+        print("Something wrong with the PAR-file; cannot extract (extra) metadata")
+        extract_md = False
     base_dir = op.dirname(PAR_file)
     base_name = op.join(base_dir, op.splitext(PAR_file)[0])
     ni_name = base_name + '.nii.gz'
@@ -25,7 +30,7 @@ def parrec2nii(PAR_file, converter, is_epi, compress=True):
     with open(os.devnull, 'w') as devnull:
         subprocess.call(cmd, stdout=devnull)
 
-    if is_epi:
+    if is_epi and extract_md:
         # Philips specific hard-coded stuff
         wfs, epi_factor = par_header['water_fat_shift'], par_header['epi_factor']
         ACCELERATION = 3.0

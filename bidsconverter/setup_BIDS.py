@@ -338,8 +338,9 @@ class BIDSConstructor(object):
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
-            epi_yes_no = [self._mappings['bold'] in p or self._mappings['dwi'] in p
-                          for p in PAR_files]
+            if PAR_files:
+                epi_yes_no = [self._mappings['bold'] in str(p)
+                              for p in PAR_files]
             Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, converter, epi, compress)
                                      for pfile, epi in zip(PAR_files, epi_yes_no))
 
