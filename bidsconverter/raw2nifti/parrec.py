@@ -9,17 +9,23 @@ import nibabel as nib
 from ..utils import check_executable, append_to_json
 
 
-def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, compress=True):
+def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, ees=None, compress=True):
     """ Converts par/rec files to nifti.gz. """
+
+    effective_echo_spacing = None
 
     try:
         par_header = nib.load(PAR_file).header.general_info
         extract_md = True
     except:
+
         print("Something wrong with the PAR-file %s; cannot extract (extra) "
               "metadata, such as EffectiveEchoSpacing. If you want to do "
               "B0-unwarping, set this field in the json manuallY!" % op.basename(PAR_file))
         extract_md = False
+        if ees is not None:
+            effective_echo_spacing = ees
+
     base_dir = op.dirname(PAR_file)
     base_name = op.join(base_dir, op.splitext(PAR_file)[0])
     ni_name = base_name + '.nii.gz'
@@ -37,9 +43,11 @@ def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, compress=True):
     if is_epi and extract_md:
         # Philips specific hard-coded stuff
         wfs, epi_factor = par_header['water_fat_shift'], par_header['epi_factor']
-        eff_echo_spacing = (((1000.0) * wfs)/(434.215 * (epi_factor + 1))) / acceleration
+        effective_echo_spacing = (((1000.0) * wfs)/(434.215 * (epi_factor + 1))) / acceleration
+
+    if effective_echo_spacing is not None:
         json_file = op.join(op.dirname(PAR_file), op.basename(PAR_file).split('.')[0] + '.json')
-        to_append = {'EffectiveEchoSpacing': eff_echo_spacing / 1000.0}  # fmriprep wants dwell time in seconds!
+        to_append = {'EffectiveEchoSpacing': effective_echo_spacing / 1000.0}  # fmriprep wants dwell time in seconds!
         append_to_json(json_file, to_append)
 
     _rename_b0_files(base_dir=base_dir, te_diff=te_diff)

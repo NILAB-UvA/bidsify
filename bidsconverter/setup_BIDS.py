@@ -176,6 +176,12 @@ class BIDSConstructor(object):
             if self.cfg['options']['pe_dir'] in dir_mappings.keys():
                 self.cfg['options']['pe_dir'] = dir_mappings[self.cfg['options']['pe_dir']]
 
+        if not 'effective_echo_spacing' in options:
+            self.cfg['options']['effective_echo_spacing'] = None
+            print("No value for 'effective_echo_spacing' found in options. If "
+                  "we cannot read the PAR-header, we cannot prepare the data" 
+                  "optimally for preprocessing w/B0 unwarping.")
+
         for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
             if ftype not in self.cfg['mappings'].keys():
                 self.cfg['mappings'][ftype] = None
@@ -353,13 +359,14 @@ class BIDSConstructor(object):
         compress = False if self._debug else True
         te_diff = self.cfg['options']['te_diff']
         acc = self.cfg['options']['SENSE_factor']
+        ees = self.cfg['options']['effective_echo_spacing']
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
             if PAR_files:
                 epi_yes_no = [self._mappings['bold'] in str(p)
                               for p in PAR_files]
-                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, epi, acc, te_diff, compress)
+                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, epi, acc, te_diff, ees, compress)
                                          for pfile, epi in zip(PAR_files, epi_yes_no))
 
         elif self.cfg['options']['mri_type'] == 'nifti':
@@ -433,4 +440,4 @@ class BIDSConstructor(object):
         for w in wildcards:
             files.extend(glob(op.join(path, '*%s' % w)))
 
-        return files
+        return sorted(files)
