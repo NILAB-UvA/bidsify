@@ -43,11 +43,11 @@ def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, ees=None, compre
     if is_epi and extract_md:
         # Philips specific hard-coded stuff
         wfs, epi_factor = par_header['water_fat_shift'], par_header['epi_factor']
-        effective_echo_spacing = (((1000.0) * wfs)/(434.215 * (epi_factor + 1))) / acceleration
+        effective_echo_spacing = (((1000.0) * wfs)/(434.215 * (epi_factor + 1))) / acceleration / 1000.0
 
     if effective_echo_spacing is not None:
         json_file = op.join(op.dirname(PAR_file), op.basename(PAR_file).split('.')[0] + '.json')
-        to_append = {'EffectiveEchoSpacing': effective_echo_spacing / 1000.0}  # fmriprep wants dwell time in seconds!
+        to_append = {'EffectiveEchoSpacing': effective_echo_spacing}  # fmriprep wants dwell time in seconds!
         append_to_json(json_file, to_append)
 
     _rename_b0_files(base_dir=base_dir, te_diff=te_diff)
