@@ -166,7 +166,7 @@ class BIDSConstructor(object):
             # Standard at Spinoza Centre REC-L
             self.cfg['options']['te_diff'] = 0.005
         else:
-            if self.cfg['options']['te_diff'] > 0:
+            if self.cfg['options']['te_diff'] >= 1:
                 # probably in msec -> convert to sec
                 self.cfg['options']['te_diff'] /= 1000
 
