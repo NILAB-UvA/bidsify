@@ -4,7 +4,6 @@ import json
 import os
 import os.path as op
 import shutil
-import warnings
 import fnmatch
 import gzip
 import nibabel as nib
@@ -125,6 +124,9 @@ class BIDSConstructor(object):
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
+        dir_mappings = {'x': 'i', 'y': 'j', 'z': 'k',
+                        'x-': 'i-', 'y-': 'j-', 'z-': 'k-'}
+
         if not op.isfile(self._cfg_file):
             msg = "Couldn't find config-file: %s" % self._cfg_file
             raise IOError(msg)
@@ -132,33 +134,51 @@ class BIDSConstructor(object):
         with open(self._cfg_file) as config:
             self.cfg = json.load(config, object_pairs_hook=OrderedDict)
 
-        if not 'mri_type' in self.cfg['options']:
+        options = self.cfg['options'].keys()
+        if not 'mri_type' in options:
             self.cfg['options']['mri_type'] = 'parrec'
 
-        if not 'n_cores' in self.cfg['options']:
+        if not 'n_cores' in options:
             self.cfg['options']['n_cores'] = -1
 
-        if not 'subject_stem' in self.cfg['options']:
+        if not 'subject_stem' in options:
             self.cfg['options']['subject_stem'] = 'sub'
 
-        if not 'out_dir' in self.cfg['options']:
+        if not 'out_dir' in options:
             self.cfg['options']['out_dir'] = op.join(self.project_dir, 'bids_converted')
         else:
             self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
 
-        if not 'overwrite' in self.cfg['options']:
+        if not 'overwrite' in options:
             self.cfg['options']['overwrite'] = False
 
-        if not 'parrec_converter' in self.cfg['options']:
-            self.cfg['options']['parrec_converter'] = 'dcm2niix'
+        if not 'slice_order' in options:
+            self.cfg['options']['slice_order'] = 'k'
+        else:
+            if options['slice_order'] in dir_mappings.keys():
+                self.cfg['options']['slice_order'] = dir_mappings[options['slice_order']]
 
-        if not 'slice_order' in self.cfg['options']:
-            self.cfg['options']['slice_order'] = 'ascending'
+        if not 'SENSE_factor' in options:
+            # Standard at Spinoza Centre REC-L
+            self.cfg['options']['SENSE_factor'] = 2
 
-        for option in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
+        if not 'te_diff' in options:
+            # Standard at Spinoza Centre REC-L
+            self.cfg['options']['te_diff'] = 0.005
+        else:
+            if self.cfg['options']['te_diff'] > 0:
+                # probably in msec -> convert to sec
+                self.cfg['options']['te_diff'] /= 1000
 
-            if option not in self.cfg['mappings'].keys():
-                self.cfg['mappings'][option] = None
+        if not 'pe_dir' in options:
+            self.cfg['options']['pe_dir'] = 'j'
+        else:
+            if self.cfg['options']['pe_dir'] in dir_mappings.keys():
+                self.cfg['options']['pe_dir'] = dir_mappings[self.cfg['options']['pe_dir']]
+
+        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
+            if ftype not in self.cfg['mappings'].keys():
+                self.cfg['mappings'][ftype] = None
 
         # Set attributes for readability
         self._mappings = self.cfg['mappings']
@@ -198,7 +218,6 @@ class BIDSConstructor(object):
 
             for key, value in kv_pairs.items():
 
-
                 # Append key-value pair if it's not an empty string
                 if value and key != 'mapping':
                     common_name += '_%s-%s' % (key, value)
@@ -224,17 +243,14 @@ class BIDSConstructor(object):
 
             for f in files:
                 # Rename files according to mapping
-
                 types = []
                 for ftype, match in self._mappings.items():
-
                     # If e.g. no eyedata mapping, just skip it
                     # This should be refactored!
                     if match is None:
                         continue
 
                     match = '*' + match + '*'
-
                     if fnmatch.fnmatch(op.basename(f), match):
                         types.append(ftype)
 
@@ -308,20 +324,21 @@ class BIDSConstructor(object):
         _ = [append_to_json(j, {'TaskName': taskn})
              for j, taskn in zip(func_jsons, task_names)]
 
-        # Append slicetime info
+        # Append slicetime info and other stuff
         func_files = sorted(glob(op.join(sdir, '*', '*_bold.nii.gz')))
         TRs = [nib.load(f).header['pixdim'][4] for f in func_files]
         n_slices = [nib.load(f).header['dim'][3] for f in func_files]
         slice_times = [np.linspace(0, TR, n_slice) for TR, n_slice
                        in zip(TRs, n_slices)]
-        _ = [append_to_json(j, {'SliceEncodingDirection': 'k',
-                                'SliceTiming': slice_time.tolist()})
+
+        _ = [append_to_json(j, {'SliceTiming': slice_time.tolist(),
+                                'PhaseEncodingDirection': self.cfg['options']['pe_dir'],
+                                'SliceEncodingDirection': self.cfg['options']['slice_order']})
              for j, slice_time in zip(func_jsons, slice_times)]
 
         # Append IntendedFor info to B0 jsons
-        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*fieldmap.json')))
-        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files],
-                     'Units': 'Hz'}
+        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*.json')))
+        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files]}
         _ = [append_to_json(j, to_append) for j in fmap_jsons]
 
     def _compress(self, f):
@@ -334,15 +351,16 @@ class BIDSConstructor(object):
         """ Converts raw mri to nifti.gz. """
 
         compress = False if self._debug else True
-        converter = self.cfg['options']['parrec_converter']
+        te_diff = self.cfg['options']['te_diff']
+        acc = self.cfg['options']['SENSE_factor']
 
         if self.cfg['options']['mri_type'] == 'parrec':
             PAR_files = self._glob(directory, ['.PAR', '.par'])
             if PAR_files:
                 epi_yes_no = [self._mappings['bold'] in str(p)
                               for p in PAR_files]
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, converter, epi, compress)
-                                     for pfile, epi in zip(PAR_files, epi_yes_no))
+                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, epi, acc, te_diff, compress)
+                                         for pfile, epi in zip(PAR_files, epi_yes_no))
 
         elif self.cfg['options']['mri_type'] == 'nifti':
             niftis = self._glob(directory, ['.nii', '.nifti'])
