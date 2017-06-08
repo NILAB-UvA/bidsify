@@ -64,7 +64,7 @@ class Pres2tsv(object):
                     tmp_codes = []
 
                     for ci in c:
-                        tmp_codes.extend(np.arange(ci[0], ci[1] + 1), dtype=np.int)
+                        tmp_codes.extend(np.arange(ci[0], ci[1] + 1, dtype=np.int))
                     c_codes.append(tmp_codes)
                 else:
                     c_codes.append(np.arange(c[0], c[1] + 1, dtype=np.int))
