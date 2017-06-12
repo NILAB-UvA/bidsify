@@ -9,6 +9,7 @@ import gzip
 import nibabel as nib
 import numpy as np
 import warnings
+import subprocess
 from collections import OrderedDict
 from copy import copy, deepcopy
 from glob import glob
@@ -62,15 +63,19 @@ class BIDSConstructor(object):
         self._debug = None
 
         if not self._dcm2niix:
-            msg = "The program 'dcm2niix' was not found on this computer; install from neurodebian repository with "" \
-                  ""'apt-get install dcm2niix', otherwise we can't convert par/rec (or dicom) to nifti!"
+            msg = ("The program 'dcm2niix' was not found on this computer; "
+                   " install from neurodebian repository with " 
+                   "'apt-get install dcm2niix', otherwise we can't convert "
+                   "par/rec (or dicom) to nifti!")
             warnings.warn(msg)
 
     def convert2bids(self):
         """ Method to call conversion process. """
 
         self._parse_cfg_file()
-        self._sub_dirs = sorted(glob(op.join(self.project_dir, '%s*' % self.cfg['options']['subject_stem'])))
+        subject_stem = self.cfg['options']['subject_stem']
+        self._sub_dirs = sorted(glob(op.join(self.project_dir,
+                                             '%s*' % subject_stem)))
         if not self._sub_dirs:
             msg = "Could not find subdirs in %s." % self.project_dir
             raise ValueError(msg)
@@ -79,11 +84,10 @@ class BIDSConstructor(object):
 
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
-
             out_dir = self.cfg['options']['out_dir']
 
             # Important: to find session-dirs, they should be named
-            # ses-something
+            # ses-*something
             sess_dirs = glob(op.join(sub_dir, 'ses-*'))
 
             if not sess_dirs:
@@ -92,18 +96,13 @@ class BIDSConstructor(object):
             else:
                 cdirs = sess_dirs
 
-            DTYPES = ['func', 'anat', 'dwi', 'fmap']
-
             for cdir in cdirs:
 
                 if 'ses-' in op.basename(cdir):
                     out_dir = op.join(out_dir, op.basename(cdir))
                 else:
                     if not 'sub-' in sub_name:
-                        nr = sub_name.split(self.cfg['options']['subject_stem'])[-1]
-                        nr = nr.replace('-', '')  # remove unnecessary delimiters
-                        nr = nr.replace('_', '')
-                        sub_name = 'sub-' + nr
+                        sub_name = self._extract_sub_nr(sub_name)
                     out_dir = op.join(out_dir, sub_name)
                     
                 overwrite = self.cfg['options']['overwrite']
@@ -113,17 +112,31 @@ class BIDSConstructor(object):
                     print('%s already converted - skipping ...' % out_dir)
                     continue
 
-                # If it doesn't exist yet, start conversion
-                data_types = [c for c in self.cfg.keys() if c in DTYPES]
-                data_dir = [self._move_and_rename(cdir, dtype, sub_name) for dtype in data_types]
-                dtype_dirs = [self._transform(data_dir[0], dtype) for dtype in data_types]
+                if self.cfg['options']['mri_type'] == 'dicom':
+                    # If dicom-files, then FIRST convert it
+                    cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
+                           '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
 
+                    with open(os.devnull, 'w') as devnull:
+                        subprocess.call(cmd, stdout=devnull)
+
+                # First move stuff to bids_converted dir ...
+                data_dir = [self._move_and_rename(cdir, dtype, sub_name)
+                            for dtype in self.data_types]
+
+                # ... and then transform/convert everything
+                dtype_dirs = [self._transform(data_dir[0], dtype)
+                              for dtype in self.data_types]
+
+                # ... and extract some extra meta-data
                 if len(dtype_dirs) > 0:
                     self._extract_metadata(op.dirname(dtype_dirs[0]))
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
+        # Usually, directions (e.g. slice-order acq.) is denoted with x/y/z,
+        # but BIDs wants it formatted as i/j/k
         dir_mappings = {'x': 'i', 'y': 'j', 'z': 'k',
                         'x-': 'i-', 'y-': 'j-', 'z-': 'k-'}
 
@@ -145,9 +158,11 @@ class BIDSConstructor(object):
             self.cfg['options']['subject_stem'] = 'sub'
 
         if not 'out_dir' in options:
-            self.cfg['options']['out_dir'] = op.join(self.project_dir, 'bids_converted')
+            self.cfg['options']['out_dir'] = op.join(self.project_dir,
+                                                     'bids_converted')
         else:
-            self.cfg['options']['out_dir'] = op.join(self.project_dir, self.cfg['options']['out_dir'])
+            self.cfg['options']['out_dir'] = op.join(self.project_dir,
+                                                     self.cfg['options']['out_dir'])
 
         if not 'overwrite' in options:
             self.cfg['options']['overwrite'] = False
@@ -156,7 +171,8 @@ class BIDSConstructor(object):
             self.cfg['options']['slice_order'] = 'k'
         else:
             if options['slice_order'] in dir_mappings.keys():
-                self.cfg['options']['slice_order'] = dir_mappings[options['slice_order']]
+                se_dir = dir_mappings[options['slice_order']]
+                self.cfg['options']['slice_order'] = se_dir
 
         if not 'SENSE_factor' in options:
             # Standard at Spinoza Centre REC-L
@@ -171,6 +187,7 @@ class BIDSConstructor(object):
                 self.cfg['options']['te_diff'] /= 1000
 
         if not 'pe_dir' in options:
+            # Standard at Spinoza Centre REC-L
             self.cfg['options']['pe_dir'] = 'j'
         else:
             if self.cfg['options']['pe_dir'] in dir_mappings.keys():
@@ -180,13 +197,39 @@ class BIDSConstructor(object):
             self.cfg['options']['effective_echo_spacing'] = None
             print("No value for 'effective_echo_spacing' found in options. If "
                   "we cannot read the PAR-header, we cannot prepare the data" 
-                  "optimally for preprocessing w/B0 unwarping.")
+                  " optimally for preprocessing w/B0 unwarping.")
 
         for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
             if ftype not in self.cfg['mappings'].keys():
                 self.cfg['mappings'][ftype] = None
 
-        # Set attributes for readability
+        # Some validations
+        DTYPES = ['func', 'anat', 'fmap', 'dwi']
+        self.data_types = [c for c in self.cfg.keys() if c in DTYPES]
+
+        for dtype in self.data_types:
+
+            for element in self.cfg[dtype].keys():
+                # Check if every element has an 'id' field!
+                has_id = 'id' in self.cfg[dtype][element]
+
+                if not has_id:
+                    msg = ("Element '%s' in data-type '%s' has no field 'id' "
+                           "(a unique identifier), which is necessary for "
+                           "conversion!")
+                    raise ValueError(msg)
+
+                if dtype == 'func':
+                    # Check if func elements have a task field ...
+                    has_task = 'task' in self.cfg[dtype][element]
+                    if not has_task:
+                        # Dunno if this works ...
+                        task_name = self.cfg[dtype][element].keys()[0]
+                        print("Setting task-name of element '%s' to '%s'." %
+                              (task_name, task_name))
+                        self.cfg[dtype][element]['task'] = task_name
+
+        # Set some attributes directly for readability
         self._mappings = self.cfg['mappings']
         self._debug = self.cfg['options']['debug']
         self._out_dir = self.cfg['options']['out_dir']
@@ -195,26 +238,30 @@ class BIDSConstructor(object):
         """ Does the actual work of processing/renaming/conversion. """
 
         if not 'sub-' in sub_name:
-            nr = sub_name.split(self.cfg['options']['subject_stem'])[-1]
-            nr = nr.replace('-', '')  # remove unnecessary delimiters
-            nr = nr.replace('_', '')
-            sub_name = 'sub-' + nr
+            sub_name = self._extract_sub_nr(sub_name)
 
+        # The number of coherent element for a given data-type (e.g. runs in
+        # bold-fmri, or different T1 acquisitions for anat) ...
         n_elem = len(self.cfg[dtype])
 
         if n_elem == 0:
+            # If there are for some reason no elements, skip method
             return 0
 
         unallocated = []
-        # Loop over contents of func/anat/dwi/fieldmap
+        # Loop over contents of dtype (e.g. func)
         for elem in self.cfg[dtype].keys():
 
-            # Kinda ugly, but can't figure out a more elegant way atm
+            # Extract "key-value" pairs (info about element)
             kv_pairs = deepcopy(self.cfg[dtype][elem])
-            idf = deepcopy(kv_pairs['id'])
+
+            # Extract identifier (idf) from element
+            idf = copy(kv_pairs['id'])
+            # But delete the field, because we'll loop over the rest of the
+            # fields ...
             del kv_pairs['id']
 
-            # common_name is simply sub-xxx
+            # common_name is simply sub-[0-9,0-9,0-9]
             common_name = copy(sub_name)
 
             # Add session-id pair to name if there are sessions!
@@ -223,18 +270,16 @@ class BIDSConstructor(object):
                 common_name += '_%s-%s' % ('ses', sess_id)
 
             for key, value in kv_pairs.items():
-
                 # Append key-value pair if it's not an empty string
-                if value and key != 'mapping':
-                    common_name += '_%s-%s' % (key, value)
-                elif key == 'mapping':
-                    common_name += '_%s' % value
+                common_name += '_%s-%s' % (key, value)
 
             # Find files corresponding to func/anat/dwi/fieldmap
-            files = [f for f in glob(op.join(cdir, '*%s*' % idf)) if op.isfile(f)]
+            files = [f for f in glob(op.join(cdir, '*%s*' % idf))
+                     if op.isfile(f)]
 
             if not files:  # check one level lower
-                files = [f for f in glob(op.join(cdir, '*', '*%s*' % idf)) if op.isfile(f)]
+                files = [f for f in glob(op.join(cdir, '*', '*%s*' % idf))
+                         if op.isfile(f)]
 
             if files:
                 if 'ses-' in op.basename(cdir):
@@ -245,25 +290,28 @@ class BIDSConstructor(object):
                     data_dir = self._make_dir(op.join(self._out_dir, sub_name,
                                                       dtype))
             else:
+                # If there are no files, still create data_dir variable,
+                # because something needs to be returned
                 data_dir = op.join(self._out_dir, sub_name, dtype)
 
             for f in files:
                 # Rename files according to mapping
                 types = []
                 for ftype, match in self._mappings.items():
-                    # If e.g. no eyedata mapping, just skip it
-                    # This should be refactored!
                     if match is None:
+                        # if there's no mapping given, skip it
                         continue
 
-                    match = '*' + match + '*'
+                    match = '*%s*' % match
                     if fnmatch.fnmatch(op.basename(f), match):
                         types.append(ftype)
 
                 if len(types) > 1:
-                    msg = "Couldn't determine file-type for file '%s'; is one of the "\
-                          "following:\n %r" % (f, types)
-                    warnings.warn(msg)
+                    msg = ("Couldn't determine file-type for file '%s' (i.e. "
+                           "there is no UNIQUE mapping; "
+                           "is one of the following:\n %r" % (f, types))
+                    raise ValueError(msg)
+
                 elif len(types) == 1:
                     filetype = types[0]
                 else:
@@ -271,21 +319,24 @@ class BIDSConstructor(object):
                     # No file found; ends up in unallocated (printed later).
                     continue
 
-                # Create full name as common_name + unique filetype + original extension
+                # Create full name as common_name + unique filetype +
+                # original extension
                 exts = f.split('.')[1:]
 
-                # For some weird reason, people seem to use periods in filenames,
-                # so remove all unnecessary 'extensions'
+                # For some weird reason, people seem to use periods in
+                # filenames, so remove all unnecessary 'extensions'
                 allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle',
                                 'json', 'edf', 'log', 'bz2', 'tar', 'phy',
                                 'cPickle', 'pkl', 'jl', 'tsv', 'csv']
-
                 upper_exts = [s.upper() for s in allowed_exts]
                 allowed_exts.extend(upper_exts)
 
                 clean_exts = '.'.join([e for e in exts if e in allowed_exts])
                 full_name = op.join(data_dir, common_name + '_%s.%s' %
                                     (filetype, clean_exts))
+
+                # _b0 or _B0 may be used as an identifier (which makes sense),
+                # but needs to be removed for BIDS-compatibility
                 full_name = full_name.replace('_b0', '')
                 full_name = full_name.replace('_B0', '')
 
@@ -293,6 +344,7 @@ class BIDSConstructor(object):
                     print("Renaming '%s' as '%s'" % (f, full_name))
 
                 if not op.isfile(full_name):
+                    # only do it if it isn't already done
                     shutil.copyfile(f, full_name)
 
         if unallocated:
@@ -326,7 +378,8 @@ class BIDSConstructor(object):
 
         # Append TaskName
         func_jsons = sorted(glob(op.join(sdir, '*', '*task-*bold.json')))
-        task_names = [op.basename(j).split('task-')[1].split('_')[0] for j in func_jsons]
+        task_names = [op.basename(j).split('task-')[1].split('_')[0]
+                      for j in func_jsons]
         _ = [append_to_json(j, {'TaskName': taskn})
              for j, taskn in zip(func_jsons, task_names)]
 
@@ -337,14 +390,18 @@ class BIDSConstructor(object):
         slice_times = [np.linspace(0, TR, n_slice) for TR, n_slice
                        in zip(TRs, n_slices)]
 
+        pe_dir = self.cfg['options']['pe_dir']
+        se_dir = self.cfg['options']['slice_order']
         _ = [append_to_json(j, {'SliceTiming': slice_time.tolist(),
-                                'PhaseEncodingDirection': self.cfg['options']['pe_dir'],
-                                'SliceEncodingDirection': self.cfg['options']['slice_order']})
+                                'PhaseEncodingDirection': pe_dir,
+                                'SliceEncodingDirection': se_dir})
              for j, slice_time in zip(func_jsons, slice_times)]
 
         # Append IntendedFor info to B0 jsons
-        fmap_jsons = sorted(glob(op.join(sdir, 'fmap', '*.json')))
-        to_append = {'IntendedFor': ['func/%s' % op.basename(f) for f in func_files]}
+        fmap_jsons = self._glob(op.join(sdir, 'fmap'),
+                                ['*phasediff.json', '*fieldmap.json'])
+        to_append = {'IntendedFor': ['func/%s' % op.basename(f)
+                                     for f in func_files]}
         _ = [append_to_json(j, to_append) for j in fmap_jsons]
 
     def _compress(self, f):
@@ -353,40 +410,35 @@ class BIDSConstructor(object):
             shutil.copyfileobj(f_in, f_out)
         os.remove(f)
 
-    def _mri2nifti(self, directory, compress=True, n_cores=-1):
+    def _mri2nifti(self, directory, n_cores=-1):
         """ Converts raw mri to nifti.gz. """
 
+        # If in "debug-mode", set compress to False to save time
         compress = False if self._debug else True
-        te_diff = self.cfg['options']['te_diff']
-        acc = self.cfg['options']['SENSE_factor']
-        ees = self.cfg['options']['effective_echo_spacing']
 
         if self.cfg['options']['mri_type'] == 'parrec':
+            # Do par/rec conversion!
             PAR_files = self._glob(directory, ['.PAR', '.par'])
             if PAR_files:
-                epi_yes_no = [self._mappings['bold'] in str(p)
-                              for p in PAR_files]
-                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile, epi, acc, te_diff, ees, compress)
-                                         for pfile, epi in zip(PAR_files, epi_yes_no))
+                Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile,
+                                                             self.cfg,
+                                                             compress)
+                                         for pfile in PAR_files)
 
         elif self.cfg['options']['mri_type'] == 'nifti':
-            niftis = self._glob(directory, ['.nii', '.nifti'])
+            niftis = self._glob(directory, ['.nii', '.nifti', '.ni'])
 
-            if niftis:
+            if niftis and compress:
                 _ = [self._compress(f) for f in niftis]
 
         elif self.cfg['options']['mri_type'] == 'nifti-gz':
+            # Don't have to do anything if it's already nifti.gz!
             pass
-
-        elif self.cfg['options']['mri_type'] == 'dicom':
-            print('DICOM conversion not yet implemented!')
-        else:
-            print("'%s' conversion not yet supported!" % self.cfg['options']['mri_type'])
 
         # Check for left-over unconverted niftis
         if compress:
 
-            niftis = self._glob(directory, ['.nii', '.nifti'])
+            niftis = self._glob(directory, ['.nii', '.nifti', '.ni'])
 
             if niftis:
                 _ = [self._compress(f) for f in niftis]
@@ -441,3 +493,10 @@ class BIDSConstructor(object):
             files.extend(glob(op.join(path, '*%s' % w)))
 
         return sorted(files)
+
+    def _extract_sub_nr(self, sub_name):
+        sub_stem = self.cfg['options']['subject_stem']
+        nr = sub_name.split(sub_stem)[-1]
+        nr = nr.replace('-', '').replace('_', '')
+        return 'sub-' + nr
+
