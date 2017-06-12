@@ -6,22 +6,28 @@ import shutil
 import json
 from glob import glob
 import nibabel as nib
+from fnmatch import fnmatch
 from ..utils import check_executable, append_to_json
 
 
-def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, ees=None, compress=True):
+def parrec2nii(PAR_file, cfg, compress=True):
     """ Converts par/rec files to nifti.gz. """
 
     effective_echo_spacing = None
+    # Extract some info from config
+    te_diff = cfg['options']['te_diff']
+    acc = cfg['options']['SENSE_factor']
+    ees = cfg['options']['effective_echo_spacing']
+    is_epi = fnmatch(str(PAR_file), '*%s*' % cfg['mappings']['bold'])
 
     try:
         par_header = nib.load(PAR_file).header.general_info
         extract_md = True
     except:
-
         print("Something wrong with the PAR-file %s; cannot extract (extra) "
               "metadata, such as EffectiveEchoSpacing. If you want to do "
-              "B0-unwarping, set this field in the json manuallY!" % op.basename(PAR_file))
+              "B0-unwarping, set this field in the json manually!"
+              % op.basename(PAR_file))
         extract_md = False
         if ees is not None:
             effective_echo_spacing = ees
@@ -43,11 +49,13 @@ def parrec2nii(PAR_file, is_epi, acceleration=2, te_diff=0.005, ees=None, compre
     if is_epi and extract_md:
         # Philips specific hard-coded stuff
         wfs, epi_factor = par_header['water_fat_shift'], par_header['epi_factor']
-        effective_echo_spacing = (((1000.0) * wfs)/(434.215 * (epi_factor + 1))) / acceleration / 1000.0
+        effective_echo_spacing = (((1000.0) * wfs)/
+                                  (434.215 * (epi_factor + 1))) / acc / 1000.0
 
     if effective_echo_spacing is not None:
-        json_file = op.join(op.dirname(PAR_file), op.basename(PAR_file).split('.')[0] + '.json')
-        to_append = {'EffectiveEchoSpacing': effective_echo_spacing}  # fmriprep wants dwell time in seconds!
+        json_file = op.join(op.dirname(PAR_file),
+                            op.basename(PAR_file).split('.')[0] + '.json')
+        to_append = {'EffectiveEchoSpacing': effective_echo_spacing}
         append_to_json(json_file, to_append)
 
     _rename_b0_files(base_dir=base_dir, te_diff=te_diff)
@@ -61,9 +69,11 @@ def _construct_conversion_cmd(base_name, PAR_file, compress):
 
     if compress:
         if pigz:
-            cmd = ['dcm2niix', '-b', 'y', '-z', 'y', '-f', op.basename(base_name), PAR_file]
+            cmd = ['dcm2niix', '-b', 'y', '-z', 'y', '-f',
+                   op.basename(base_name), PAR_file]
         else:
-            cmd = ['dcm2niix', '-b', 'y', '-z', 'i', '-f', op.basename(base_name), PAR_file]
+            cmd = ['dcm2niix', '-b', 'y', '-z', 'i', '-f',
+                   op.basename(base_name), PAR_file]
     else:
         cmd = ['dcm2niix', '-b', 'y', '-f', op.basename(base_name), PAR_file]
 
