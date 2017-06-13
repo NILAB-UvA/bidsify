@@ -19,8 +19,6 @@ def parrec2nii(PAR_file, cfg, compress=True):
     acc = cfg['options']['SENSE_factor']
     ees = cfg['options']['effective_echo_spacing']
     is_epi = fnmatch(str(PAR_file), '*_bold*')
-    print(PAR_file)
-    print(is_epi)
 
     try:
         par_header = nib.load(PAR_file).header.general_info
