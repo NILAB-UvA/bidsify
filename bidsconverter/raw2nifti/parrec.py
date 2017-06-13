@@ -85,10 +85,11 @@ def _rename_b0_files(base_dir, te_diff):
     is specific to our Philips Achieva 3T scanner!
     """
 
-    jsons = glob(op.join(base_dir, '_ph*.json'))
+    jsons = glob(op.join(base_dir, '*_ph*.json'))
 
     if len(jsons) == 1:
-        jsonnew = jsons[0].replace('_ph', '').replace('.json', '_phasediff.json')
+        jsonnew = jsons[0].replace('_ph', '')
+        jsonnew = jsonnew.replace('.json', '_phasediff.json')
         os.rename(jsons[0], jsonnew)
         with open(jsonnew, 'r') as metadata_file:
             metadata = json.load(metadata_file)
