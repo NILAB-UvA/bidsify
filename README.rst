@@ -2,7 +2,7 @@ BidsConverter - converts your (raw) data to the BIDS-format
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
-.. _here: http://www.jsoneditoronline.org/?id=97c57fc33cac9b65f6d010c49b5087d7
+.. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
 This package offers a tool to convert your raw (f)MRI data to the
 "Brain Imaging Data Structuce" (BIDS_) format. Using only a 
