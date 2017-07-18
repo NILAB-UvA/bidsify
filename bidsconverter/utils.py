@@ -28,7 +28,7 @@ def check_executable(executable):
         return False
 
 
-def append_to_json(json_path, to_append, to_change=None):
+def append_to_json(json_path, to_append):
 
     if op.isfile(json_path):
 

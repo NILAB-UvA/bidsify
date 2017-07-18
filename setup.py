@@ -4,13 +4,12 @@ from setuptools import setup, find_packages
 REQUIREMENTS = [
     'scipy>=0.17',
     'numpy>=1.10',
-    'scikit-learn>=0.17',
     'pandas>=0.17',
     'nibabel>=2.0',
     'joblib'
 ]
 
-VERSION = bidsconverter.__version__
+VERSION = bidsconverter.setup_BIDS.__version__
 
 def readme():
     with open('README.rst') as f:

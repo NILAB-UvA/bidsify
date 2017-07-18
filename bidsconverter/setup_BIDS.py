@@ -19,6 +19,8 @@ from .behav2tsv import Pres2tsv
 from .physio import convert_phy
 from .utils import check_executable, append_to_json
 
+__version__ = '0.1'
+
 
 class BIDSConstructor(object):
     """
@@ -55,14 +57,13 @@ class BIDSConstructor(object):
         self.project_dir = project_dir
         self.cfg = None
         self._cfg_file = cfg_file
-        self._dcm2niix = check_executable('dcm2niix')
         self._parrec2nii = check_executable('parrec2nii')
         self._edf2asc = check_executable('edf2asc')
         self._sub_dirs = None
         self._mappings = None
         self._debug = None
 
-        if not self._dcm2niix:
+        if not check_executable('dcm2niix'):
             msg = ("The program 'dcm2niix' was not found on this computer; "
                    " install from neurodebian repository with " 
                    "'apt-get install dcm2niix', otherwise we can't convert "
@@ -121,24 +122,21 @@ class BIDSConstructor(object):
                         subprocess.call(cmd, stdout=devnull)
 
                 # First move stuff to bids_converted dir ...
-                data_dir = [self._move_and_rename(cdir, dtype, sub_name)
-                            for dtype in self.data_types]
+                data_dirs = [self._move_and_rename(cdir, dtype, sub_name)
+                             for dtype in self.data_types]
 
                 # ... and then transform/convert everything
-                dtype_dirs = [self._transform(data_dir[0], dtype)
-                              for dtype in self.data_types]
+                data_dirs = [self._transform(data_dir)
+                             for data_dir in data_dirs]
 
                 # ... and extract some extra meta-data
-                if len(dtype_dirs) > 0:
-                    self._extract_metadata(op.dirname(dtype_dirs[0]))
+                _ = [self._extract_metadata(data_dir)
+                     for data_dir in data_dirs]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
 
-        # Usually, directions (e.g. slice-order acq.) is denoted with x/y/z,
-        # but BIDs wants it formatted as i/j/k
-        dir_mappings = {'x': 'i', 'y': 'j', 'z': 'k',
-                        'x-': 'i-', 'y-': 'j-', 'z-': 'k-'}
+        self.metadata = {}
 
         if not op.isfile(self._cfg_file):
             msg = "Couldn't find config-file: %s" % self._cfg_file
@@ -167,57 +165,43 @@ class BIDSConstructor(object):
         if not 'overwrite' in options:
             self.cfg['options']['overwrite'] = False
 
-        if not 'slice_order' in options:
-            self.cfg['options']['slice_order'] = 'k'
-        else:
-            if options['slice_order'] in dir_mappings.keys():
-                se_dir = dir_mappings[options['slice_order']]
-                self.cfg['options']['slice_order'] = se_dir
 
-        if not 'SENSE_factor' in options:
-            # Standard at Spinoza Centre REC-L
-            self.cfg['options']['SENSE_factor'] = 2
+        if not 'spinoza_data' in options:
+            self.cfg['options']['spinoza_data'] = False
 
-        if not 'te_diff' in options:
-            # Standard at Spinoza Centre REC-L
-            self.cfg['options']['te_diff'] = 0.005
-        else:
-            if self.cfg['options']['te_diff'] >= 1:
-                # probably in msec -> convert to sec
-                self.cfg['options']['te_diff'] /= 1000
-
-        if not 'pe_dir' in options:
-            # Standard at Spinoza Centre REC-L
-            self.cfg['options']['pe_dir'] = 'j'
-        else:
-            if self.cfg['options']['pe_dir'] in dir_mappings.keys():
-                self.cfg['options']['pe_dir'] = dir_mappings[self.cfg['options']['pe_dir']]
-
-        if not 'effective_echo_spacing' in options:
-            self.cfg['options']['effective_echo_spacing'] = None
-            print("No value for 'effective_echo_spacing' found in options. If "
-                  "we cannot read the PAR-header, we cannot prepare the data" 
-                  " optimally for preprocessing w/B0 unwarping.")
-
-        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
-            if ftype not in self.cfg['mappings'].keys():
-                self.cfg['mappings'][ftype] = None
-
-        # Some validations
+        self.metadata['toplevel'] = {'BidsConverterVersion': __version__}
+        if 'metadata' in self.cfg.keys():
+            self.metadata['toplevel'].update(self.cfg['metadata'])
+        
         DTYPES = ['func', 'anat', 'fmap', 'dwi']
         self.data_types = [c for c in self.cfg.keys() if c in DTYPES]
+        
+        if self.cfg['options']['spinoza_data']:
+            self.metadata['func'] = {'pe_dir': 'j', 'effective_echo_spacing': 0.00034545,
+                                     'SENSE_factor': 2, 'te_diff': 0.005, 'slice_order': 'k',
+                                      }
+            self.metadata['fmap'] = {'total_readout_time': 'YET_UNKNOWN'}
 
         for dtype in self.data_types:
 
+            if 'metadata' in self.cfg[dtype].keys():
+                self.metadata[dtype] = self.cfg[dtype]['metadata']
+
             for element in self.cfg[dtype].keys():
                 # Check if every element has an 'id' field!
+                if element == 'metadata':
+                    continue
+
                 has_id = 'id' in self.cfg[dtype][element]
 
                 if not has_id:
                     msg = ("Element '%s' in data-type '%s' has no field 'id' "
                            "(a unique identifier), which is necessary for "
-                           "conversion!")
+                           "conversion!" % (element, dtype))
                     raise ValueError(msg)
+
+                if 'metadata' in self.cfg[dtype][element]:
+                    self.metadata[dtype][element] = self.cfg[dtype][element]['metadata']
 
                 if dtype == 'func':
                     # Check if func elements have a task field ...
@@ -233,6 +217,10 @@ class BIDSConstructor(object):
         self._mappings = self.cfg['mappings']
         self._debug = self.cfg['options']['debug']
         self._out_dir = self.cfg['options']['out_dir']
+
+        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
+            if ftype not in self.cfg['mappings'].keys():
+                self.cfg['mappings'][ftype] = None
 
     def _move_and_rename(self, cdir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
@@ -251,6 +239,9 @@ class BIDSConstructor(object):
         unallocated = []
         # Loop over contents of dtype (e.g. func)
         for elem in self.cfg[dtype].keys():
+
+            if elem == 'metadata':
+                continue
 
             # Extract "key-value" pairs (info about element)
             kv_pairs = deepcopy(self.cfg[dtype][elem])
@@ -328,8 +319,7 @@ class BIDSConstructor(object):
                 allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle',
                                 'json', 'edf', 'log', 'bz2', 'tar', 'phy',
                                 'cPickle', 'pkl', 'jl', 'tsv', 'csv']
-                upper_exts = [s.upper() for s in allowed_exts]
-                allowed_exts.extend(upper_exts)
+                allowed_exts.extend([s.upper() for s in allowed_exts])
 
                 clean_exts = '.'.join([e for e in exts if e in allowed_exts])
                 full_name = op.join(data_dir, common_name + '_%s.%s' %
@@ -337,8 +327,7 @@ class BIDSConstructor(object):
 
                 # _b0 or _B0 may be used as an identifier (which makes sense),
                 # but needs to be removed for BIDS-compatibility
-                full_name = full_name.replace('_b0', '')
-                full_name = full_name.replace('_B0', '')
+                full_name = full_name.replace('_b0', '').replace('_B0', '')
 
                 if self._debug:
                     print("Renaming '%s' as '%s'" % (f, full_name))
@@ -351,12 +340,12 @@ class BIDSConstructor(object):
             print('Unallocated files for %s:' % sub_name)
             print('\n'.join(unallocated))
 
-        return op.dirname(data_dir)
+        return data_dir
 
-    def _transform(self, sess_dir, dtype):
+    def _transform(self, data_dir):
         """ Transforms files to appropriate format (nii.gz or tsv). """
 
-        data_dir = op.join(sess_dir, dtype)
+        dtype = op.basename(data_dir)
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
 
@@ -372,37 +361,53 @@ class BIDSConstructor(object):
         if topups and dtype != 'fmap':
             dest = self._make_dir(op.join(sess_dir, 'fmap'))
             [shutil.move(tu, dest) for tu in topups]
+
         return data_dir
 
-    def _extract_metadata(self, sdir):
+    def _extract_metadata(self, data_dir):
 
-        # Append TaskName
-        func_jsons = sorted(glob(op.join(sdir, '*', '*task-*bold.json')))
-        task_names = [op.basename(j).split('task-')[1].split('_')[0]
-                      for j in func_jsons]
-        _ = [append_to_json(j, {'TaskName': taskn})
-             for j, taskn in zip(func_jsons, task_names)]
+        # Usually, directions (e.g. slice-order acq.) is denoted with x/y/z,
+        # but BIDs wants it formatted as i/j/k
+        dir_mappings = {'x': 'i', 'y': 'j', 'z': 'k',
+                        'x-': 'i-', 'y-': 'j-', 'z-': 'k-'}
 
-        # Append slicetime info and other stuff
-        func_files = sorted(glob(op.join(sdir, '*', '*_bold.nii.gz')))
-        TRs = [nib.load(f).header['pixdim'][4] for f in func_files]
-        n_slices = [nib.load(f).header['dim'][3] for f in func_files]
-        slice_times = [np.linspace(0, TR, n_slice) for TR, n_slice
-                       in zip(TRs, n_slices)]
+        dtype = op.basename(data_dir)
+        dtype_metadata = self.metadata['toplevel']
 
-        pe_dir = self.cfg['options']['pe_dir']
-        se_dir = self.cfg['options']['slice_order']
-        _ = [append_to_json(j, {'SliceTiming': slice_time.tolist(),
-                                'PhaseEncodingDirection': pe_dir,
-                                'SliceEncodingDirection': se_dir})
-             for j, slice_time in zip(func_jsons, slice_times)]
+        if self.metadata.get(dtype, None) is not None:
+            dtype_metadata.update(self.metadata[dtype])
 
-        # Append IntendedFor info to B0 jsons
-        fmap_jsons = self._glob(op.join(sdir, 'fmap'),
-                                ['*phasediff.json', '*fieldmap.json'])
-        to_append = {'IntendedFor': ['func/%s' % op.basename(f)
-                                     for f in func_files]}
-        _ = [append_to_json(j, to_append) for j in fmap_jsons]
+        jsons = glob(op.join(data_dir, '*.json'))
+        func_files = glob(op.join(op.dirname(data_dir), 'func', '*_bold.nii.gz'))
+
+        for json in jsons:
+
+            if dtype == 'func':
+                func_file = json.replace('.json', '.nii.gz')
+                TR = nib.load(func_file).header['pixdim'][4]
+                n_slices = nib.load(func_file).header['dim'][3]
+                slice_times = np.linspace(0, TR, n_slices)
+                dtype_metadata['SliceTiming'] = slice_times.tolist()
+
+            elif dtype == 'fmap':
+                if 'phasediff' in json:
+                    dtype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
+                                                     for f in func_files]
+                    te_diff = self.metadata['fmap'].get('te_diff', None)
+                    if te_diff is not None:
+
+                        if te_diff in dir_mappings.keys():
+                            te_diff = dir_mappings[te_diff]
+
+                        with open(json, 'r') as metadata:
+                            metadata['EchoTime1'] = metadata.pop('EchoTime')
+                            metadata['EchoTime2'] = metadata['EchoTime1'] + te_diff
+                        with open(json, 'w') as new_metadata_file:
+                            json.dump(metadata, new_metadata_file, indent=4)
+                elif 'topup' in json:
+                    dtype_metadata['IntendedFor'] = 'func/%s' % json.replace('_topup.json',
+                                                                             '_bold.nii.gz')
+            append_to_json(json, dtype_metadata)
 
     def _compress(self, f):
 

@@ -12,20 +12,305 @@ to file-formats specified by BIDS.
 
 The config.json file
 --------------------
-The BidsConverter only needs a config.json file in which 'mappings' 
-between files and file-types are specified. Additionally, this config 
-file may contain some options (e.g. concerning backups, parallel processing, 
-etc.). All options have sensible defaults. An example of a config.json 
-file can be found here_.
+The BidsConverter only needs a ``config.json`` file, which contains
+information that is used to rename and convert the raw files. An
+example of a complete ``config.json`` file can be found here_.
 
-Installing BidsConverter
-------------------------
-For now, it can only be installer from Github, by either cloning 
+The ``config.json`` file contains a couple of sections, which
+are explained below.
+
+"options"
+~~~~~~~~~
+The first (top-level) section (or "attribute" in JSON-lingo) in the file
+is the `"options"` section. An example of this section could be:
+
+.. code-block:: json
+
+  {
+    "options": {
+        "mri_type": "parrec",
+        "n_cores": -1,
+        "debug": 1,
+        "subject_stem": "sub",
+        "out_dir": "bids_converted",
+        "spinoza_data": 0
+  }
+
+No options *need* to be set explicitly as they all have sensible defaults.
+The attribute-value pairs mean the following:
+
+- "mri_type": filetype of MRI-scans ("parrec", "DICOM", "nifti"; default = "parrec")
+- "n_cores": how many CPUs to use during conversion (default: -1, all CPUs)
+- "debug": whether to print extra output for debugging (default: 0, False)
+- "subject_stem": prefix for subject-directories, e.g. "subject" in "subject-001" (default: "sub")
+- "out_dir": name of directory to save results to (default: "bids_converted")
+- "spinoza_data": whether data is from the `Spinoza centre <https://www.spinozacentre.nl>`_ (default: 0, False)
+
+Note: when the `"spinoza_data"` attribute is set to 1 (True), some default metadata-parameters are set automatically.
+
+"mappings"
+~~~~~~~~~~
+The BIDS-format specifies the naming and format of several types of MRI(-related) filetypes.
+These filetypes have specific suffixes, which are appended to the filenames in the renaming
+process handled by the BidsConverter. The `"mappings"` section in the config is meant to
+tell the BidsConverter what filetype can be identified by which "key". Thus, the mappings
+section consists of `"filetype": "identifier"` pairs. Basically, if BIDS requires a 
+specific suffix for a filetype, you need to specify that here. For example, a standard
+dataset with several BOLD-fMRI files, a T1, and physiological recordings could have 
+a mappings section like this:
+
+.. code-block:: json
+
+  {
+    "options": {
+
+        ...
+    },
+
+    "mappings": {
+
+      "bold": "_bold",
+      "T1w": "T1w",
+      "dwi": "dwi",
+      "physio": "_physio",
+    }
+
+  }
+
+Note that the mappings should be *unique*! In the example above, physiology-files ("physio") should
+therefore not contain *both* the identifier "_physio" *and* the identifier "_bold" (e.g.
+"sub-001_task-nback_bold_physio.txt")!
+
+Also, check the BIDS-specification for all filetypes supported by the format.
+
+"metadata"
+~~~~~~~~~~
+At the same (hierarchical) level as the "mappings" and "options" sections, a section
+with the name "metadata" can be optionally specified. This attribute may contain an
+arbitrary amount of attribute-value pairs which will be appended to **each** 
+JSON-metadata file during the conversion. These are thus "dataset-general" metadata
+parameters. For example, you could specify the data of conversion here, if you'd like:
+
+.. code-block:: json
+
+  {
+    "options": {
+        ...
+    },
+
+    "mappings": {
+        ...
+    },
+
+    "metadata": {
+
+      "date_of_conversion": "01-01-2017"
+    }
+
+  }
+
+The "func", "anat", "dwi", and "fmap" sections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+After the "options", "mappings", and (optionally) the "metadata" sections,
+the specifications for the four general "BIDS-datatypes" - "func", "anat", "dwi", and "fmap" -
+are listed in separate sections.
+
+Each section, like "func", can contain multiple sub-sections referring to different scans 
+for that datatype. For example, you could have two different functional runs
+with each a different task ("workingmemory" and "nback"). In that case, the "func"
+section could look like:
+
+.. code-block:: json
+
+  {
+    "options": {
+        ...
+    },
+
+    "mappings": {
+        ...
+    },
+
+    "func": {
+
+      "wm-task": {
+         "id": "wmtask",
+         "task": "workingmemory"
+      },
+
+      "nback-task": {
+         "id": "nbacktask",
+         "task": "nback"
+      }
+
+    } 
+
+  }
+
+The exact naming of the "attributes" (here: "wm-task" and "nback-task") of the sub-sections
+do not matter, but the subsequent key-value pairs *do* matter. You *always* need to set the "id"
+key, which is used to identify the files that belong to this particular task. Any key-value pair
+besides the "id" key-value pair are append to the renamed filename along the BIDS-format.
+
+For example, suppose you have a raw file "``sub-001_wmtask.PAR``" (PAR-files are Philips specific "raw" MRI-files).
+With the above config-file, this file will be renamed into "``sub-001_task-workingmemory_bold.nii.gz``". 
+
+As discussed, *any* key-value pair besides "id" will be appended (in the format "key-value") to the
+filename during the renaming-process. Imagine, for example, that you have only one task - "nback" - but
+you acquired four runs of it per subject, of which the first two were acquired with a sequential acquisition protocol,
+but the last two with a multiband protocol (e.g. if you'd want to do some methodological comparison). 
+
+The config-file should, in that case, look like:
+
+.. code-block:: json
+
+  {
+    "options": {
+        ...
+    },
+
+    "mappings": {
+        ...
+    },
+
+    "func": {
+
+      "nback-task1": {
+         "id": "nback1",
+         "task": "nback",
+         "run": 1,
+         "acq": "sequential"
+      },
+
+      "nback-task2": {
+         "id": "nback2",
+         "task": "nback",
+         "run": 2,
+         "acq": "sequential"
+      },
+
+      "nback-task3": {
+         "id": "nback3",
+         "task": "nback",
+         "run": 3,
+         "acq": "multiband"
+      },
+
+      "nback-task4": {
+         "id": "nback4",
+         "task": "nback",
+         "run": 4,
+         "acq": "multiband"
+      }
+
+    } 
+
+  }
+
+The BidsConverter will then create four files (assuming that they can be "found" using their corresponding "ids"):
+
+- ``sub-001_task-nback_run-1_acq-sequential_bold.nii.gz``
+- ``sub-001_task-nback_run-2_acq-sequential_bold.nii.gz``
+- ``sub-001_task-nback_run-3_acq-multiband_bold.nii.gz``
+- ``sub-001_task-nback_run-4_acq-multiband_bold.nii.gz``
+
+The same logic can be applied to the "dwi", "anat", and "fmap" sections. For example, if you would have
+two T1-weighted structural scans, the "anat" section could look like:
+
+.. code-block:: json
+
+  {
+    "anat": {
+
+      "firstT1": {
+         "id": "3DT1_1",
+         "run": 1
+      },
+
+      "secondT1": {
+         "id": "3DT1_2",
+         "run": 2
+      }
+
+    }
+
+  }
+
+Importantly, any UNIX-style wildcard (e.g. \*, ?, and [a,A,1-9]) can be used in the
+"id" values in these sections!
+
+Usage of BidsConverter
+----------------------
+After installing the BidsConverter (see next section), the command ``convert2bids``
+should be available in your terminal. It takes two (named) arguments:
+
+- -d ("directory"): path to the directory with the raw data that you want to convert
+- -c ("config"): path to the config-file that will be used during conversion
+
+If no arguments are given, the "directory" is assumed to be the current working directory
+and the config-file is assumed to be named "config.json" and to be located in the current
+working directory.
+
+Importantly, BidsConverter assumes that the directory with raw data is organized as follows
+(for the simple case of one BOLD run and one T1):
+
+- sub-01
+
+  - ses-01 
+
+    - boldrun1.PAR
+    - boldrun1.REC
+    - T1.PAR
+    - T1.REC
+
+  - ses-02 
+
+    - boldrun1.PAR
+    - boldrun1.REC
+    - T1.PAR
+    - T1.REC
+
+- sub-02
+
+  - ses-01 
+
+    - boldrun1.PAR
+    - boldrun1.REC
+    - T1.PAR
+    - T1.REC
+
+  - ses-02 
+
+    - boldrun1.PAR
+    - boldrun1.REC
+    - T1.PAR
+    - T1.REC
+
+So all raw files should be in a single directory, which can be the subject-directory or, optionally,
+a session-directory. **Note**: the session directory **must** be named "ses-<something>". 
+
+Installing BidsConverter & dependencies
+---------------------------------------
+For now, it can only be installed from Github (no PyPI package yet), either by cloning 
 this repository directory or installing it using `pip`::
 
     $ pip install git+https://github.com/lukassnoek/BidsConverter.git@master
 
-I recommend installing the newest version of 'dcm2niix'
-(https://github.com/rordenlab/dcm2niix) if you need to convert PAR/REC and
-DICOM files. This should be the version from Github, which needs to be
-compiled (older versions do not seem to work with PAR/REC files).
+In terms of dependencies: BidsConverter currently only works with the
+`dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which 
+can be installed on UNIX-systems using neurodebian::
+
+    $ sudo apt install dcm2niix
+
+However, last time I checked, if you want to convert PAR/REC files (default format
+at the Spinoza centre), you need to have the latest version of dcm2niix installed.
+To do this, clone the dcm2niix repository locally and compile the software
+(instructions can be found on the dcm2niix Github repo).
+
+Apart from dcm2niix, BidsConverter depends on the following Python packages:
+
+- nibabel
+- scipy
+- numpy
+- joblib
+- pandas
