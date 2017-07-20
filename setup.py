@@ -35,6 +35,6 @@ setup(
     platforms=['Linux', 'Mac OSX'],
     packages=find_packages(),
     install_requires=REQUIREMENTS,
-    scripts=['bin/convert2bids', 'bin/fetch_testdata'],
+    scripts=['bin/convert2bids'],
     include_package_data=True,
     zip_safe=False)

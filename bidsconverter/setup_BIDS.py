@@ -149,6 +149,9 @@ class BIDSConstructor(object):
         if not 'mri_type' in options:
             self.cfg['options']['mri_type'] = 'parrec'
 
+        if not 'log_type' in options:
+            self.cfg['options']['log_type'] = None
+
         if not 'n_cores' in options:
             self.cfg['options']['n_cores'] = -1
 
@@ -164,7 +167,6 @@ class BIDSConstructor(object):
 
         if not 'overwrite' in options:
             self.cfg['options']['overwrite'] = False
-
 
         if not 'spinoza_data' in options:
             self.cfg['options']['spinoza_data'] = False
@@ -356,10 +358,10 @@ class BIDSConstructor(object):
             self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
 
         # Move topup files to fmap directory
-        topups = glob(op.join(data_dir, '*_topup*'))
+        topups = glob(op.join(data_dir, '*_epi.*'))
 
         if topups and dtype != 'fmap':
-            dest = self._make_dir(op.join(data_dir, 'fmap'))
+            dest = self._make_dir(op.join(op.dirname(data_dir), 'fmap'))
             [shutil.move(tu, dest) for tu in topups]
 
         return data_dir

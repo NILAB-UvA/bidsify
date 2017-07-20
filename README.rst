@@ -239,6 +239,61 @@ two T1-weighted structural scans, the "anat" section could look like:
 Importantly, any UNIX-style wildcard (e.g. \*, ?, and [a,A,1-9]) can be used in the
 "id" values in these sections!
 
+Lastly, apart from the different elements (such as ``nback-task1`` in the previous example),
+each datatype-section (``func``, ``anat``, ``fmap``, and ``dwi``) also may include a
+``metadata`` section, similar to the "toplevel" ``metadata`` section. This field may
+include key-value pairs that will be appended to *each* JSON-file within that
+datatype. This is especially nice if you'd want to add metadata that is needed for
+specific preprocessing/analysis pipelines that are based on the BIDS-format. 
+For example, the `fmriprep <fmriprep.readthedocs.io>`_ package provides
+preprocessing pipelines for BIDS-datasets, but sometimes need specific metadata.
+For example, for each BOLD-fMRI file, it needs a field ``EffectiveEchoSpacing`` in the
+corresponding JSON-file, and for B0-files (one phasediff, one magnitude image) it needs
+the fields ``EchoTime1`` and ``EchoTime2``. To include those metadata fields in the 
+corresponding JSON-files, just include a ``metadata`` field under the appropriate
+datatype section. For example, to do so for the previous examples:
+
+.. code-block:: json
+
+  {
+    "func": {
+
+      "metadata": {
+        
+         "EffectiveEchoSpacing": 0.00365,
+         "PhaseEncodingDirection": "j"
+      
+      },
+
+      "nback": {
+        
+         "id": "nback",
+         "task": "nback"
+      
+      }
+
+    },
+
+    "fmap": {
+         
+      "metadata": {
+        
+         "EchoTime1": 0.003,
+         "EchoTime2": 0.008
+      
+      },
+
+      "B0": {
+
+         "id": "B0"
+      
+      }
+    
+    }
+
+  }
+
+
 Usage of BidsConverter
 ----------------------
 After installing the BidsConverter (see next section), the command ``convert2bids``
@@ -288,11 +343,13 @@ Importantly, BidsConverter assumes that the directory with raw data is organized
 
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>". 
+Also, instead of separate \*.PAR and \*.REC files, you can also have a single or multiple DICOM
+files instead. (DICOM conversion has, however, not been thoroughly tested ...)
 
 Installing BidsConverter & dependencies
 ---------------------------------------
 For now, it can only be installed from Github (no PyPI package yet), either by cloning 
-this repository directory or installing it using `pip`::
+this repository directory (and then ``python setup.py install``) or installing it using ``pip``::
 
     $ pip install git+https://github.com/lukassnoek/BidsConverter.git@master
 
