@@ -179,19 +179,31 @@ class BIDSConstructor(object):
         self.data_types = [c for c in self.cfg.keys() if c in DTYPES]
         
         if self.cfg['options']['spinoza_data']:
-            self.metadata['func'] = {'pe_dir': 'j', 'effective_echo_spacing': 0.00034545,
-                                     'SENSE_factor': 2, 'te_diff': 0.005, 'slice_order': 'k',
-                                      }
-            self.metadata['fmap'] = {'total_readout_time': 'YET_UNKNOWN'}
+            # If data is from Spinoza centre, set some defaults to ease the process!
+            self.metadata['func'] = {'PhaseEncodingDirection': 'j',
+                                     'EffectiveEchoSpacing': 0.00034545,
+                                     'SliceEncodingDirection': 'k'}
+
+            if 'fmap' in self.cfg.keys():
+
+                if 'epi' in self.cfg['mappings'].keys():
+                    # Assume it uses topups
+                    self.metadata['fmap'] = {'PhaseEncodingDirection': 'j-'}
+                else:
+                    # Assume it uses a B0 (1 phasediff, 1 mag)
+                    self.metadata['fmap'] = {'EchoTime1': 0.003,
+                                             'EchoTime2': 0.008}
 
         for dtype in self.data_types:
 
             if 'metadata' in self.cfg[dtype].keys():
+                # Set specific dtype metadata
                 self.metadata[dtype] = self.cfg[dtype]['metadata']
 
             for element in self.cfg[dtype].keys():
                 # Check if every element has an 'id' field!
                 if element == 'metadata':
+                    # Skip metadata field
                     continue
 
                 has_id = 'id' in self.cfg[dtype][element]
@@ -209,7 +221,7 @@ class BIDSConstructor(object):
                     # Check if func elements have a task field ...
                     has_task = 'task' in self.cfg[dtype][element]
                     if not has_task:
-                        # Dunno if this works ...
+                        # Use (only) key as name as a (hacky) fix ...
                         task_name = self.cfg[dtype][element].keys()[0]
                         print("Setting task-name of element '%s' to '%s'." %
                               (task_name, task_name))
@@ -220,8 +232,9 @@ class BIDSConstructor(object):
         self._debug = self.cfg['options']['debug']
         self._out_dir = self.cfg['options']['out_dir']
 
-        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata']:
+        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata', 'epi']:
             if ftype not in self.cfg['mappings'].keys():
+                # Set non-existing mappings to None
                 self.cfg['mappings'][ftype] = None
 
     def _move_and_rename(self, cdir, dtype, sub_name):
