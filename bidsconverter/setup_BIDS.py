@@ -359,7 +359,7 @@ class BIDSConstructor(object):
         topups = glob(op.join(data_dir, '*_topup*'))
 
         if topups and dtype != 'fmap':
-            dest = self._make_dir(op.join(sess_dir, 'fmap'))
+            dest = self._make_dir(op.join(data_dir, 'fmap'))
             [shutil.move(tu, dest) for tu in topups]
 
         return data_dir
