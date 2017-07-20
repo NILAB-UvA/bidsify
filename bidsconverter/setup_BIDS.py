@@ -357,13 +357,6 @@ class BIDSConstructor(object):
         if self._mappings['physio'] is not None:
             self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
 
-        # Move topup files to fmap directory
-        topups = glob(op.join(data_dir, '*_epi.*'))
-
-        if topups and dtype != 'fmap':
-            dest = self._make_dir(op.join(op.dirname(data_dir), 'fmap'))
-            [shutil.move(tu, dest) for tu in topups]
-
         return data_dir
 
     def _extract_metadata(self, data_dir):
@@ -383,33 +376,23 @@ class BIDSConstructor(object):
         func_files = glob(op.join(op.dirname(data_dir), 'func', '*_bold.nii.gz'))
 
         for json in jsons:
+            this_metadata = copy(dtype_metadata)
 
-            if dtype == 'func':
+            if '_bold' in json:
                 func_file = json.replace('.json', '.nii.gz')
                 TR = nib.load(func_file).header['pixdim'][4]
                 n_slices = nib.load(func_file).header['dim'][3]
                 slice_times = np.linspace(0, TR, n_slices)
-                dtype_metadata['SliceTiming'] = slice_times.tolist()
+                this_metadata['SliceTiming'] = slice_times.tolist()
 
             elif dtype == 'fmap':
                 if 'phasediff' in json:
-                    dtype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
-                                                     for f in func_files]
-                    te_diff = self.metadata['fmap'].get('te_diff', None)
-                    if te_diff is not None:
-
-                        if te_diff in dir_mappings.keys():
-                            te_diff = dir_mappings[te_diff]
-
-                        with open(json, 'r') as metadata:
-                            metadata['EchoTime1'] = metadata.pop('EchoTime')
-                            metadata['EchoTime2'] = metadata['EchoTime1'] + te_diff
-                        with open(json, 'w') as new_metadata_file:
-                            json.dump(metadata, new_metadata_file, indent=4)
-                elif 'topup' in json:
-                    dtype_metadata['IntendedFor'] = 'func/%s' % json.replace('_topup.json',
-                                                                             '_bold.nii.gz')
-            append_to_json(json, dtype_metadata)
+                    this_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
+                                                    for f in func_files]
+                elif '_epi' in json:
+                    int_for = op.basename(json.replace('_epi.json','_bold.nii.gz'))
+                    this_metadata['IntendedFor'] = 'func/%s' % int_for
+            append_to_json(json, this_metadata)
 
     def _compress(self, f):
 
@@ -453,7 +436,10 @@ class BIDSConstructor(object):
     def _log2tsv(self, directory, type='Presentation'):
         """ Converts behavioral logs to event_files. """
 
-        if type == 'Presentation':
+        if type is None:
+            pass
+
+        elif type == 'Presentation':
             logs = glob(op.join(directory, '*.log'))
             event_dir = op.join(self.project_dir, 'task_info')
 
