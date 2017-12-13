@@ -359,15 +359,10 @@ can be installed on UNIX-systems using neurodebian::
 
     $ sudo apt install dcm2niix
 
-However, last time I checked, if you want to convert PAR/REC files (default format
-at the Spinoza centre), you need to have the latest version of dcm2niix installed.
-To do this, clone the dcm2niix repository locally and compile the software
-(instructions can be found on the dcm2niix Github repo).
-
 Apart from dcm2niix, BidsConverter depends on the following Python packages:
 
 - nibabel
 - scipy
 - numpy
-- joblib
+- joblib (for parallelization)
 - pandas
