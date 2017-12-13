@@ -37,10 +37,6 @@ class BIDSConstructor(object):
     -------
     convert2bids()
         Initialize renaming and conversion project to BIDS-format.
-
-    References
-    ----------
-
     """
 
     def __init__(self, project_dir, cfg_file):
@@ -65,7 +61,7 @@ class BIDSConstructor(object):
 
         if not check_executable('dcm2niix'):
             msg = ("The program 'dcm2niix' was not found on this computer; "
-                   " install from neurodebian repository with " 
+                   " install from neurodebian repository with "
                    "'apt-get install dcm2niix', otherwise we can't convert "
                    "par/rec (or dicom) to nifti!")
             warnings.warn(msg)
@@ -85,6 +81,10 @@ class BIDSConstructor(object):
 
             sub_name = op.basename(sub_dir)
             print("Processing %s" % sub_name)
+
+            if 'sub-' not in sub_name:
+                sub_name = self._extract_sub_nr(sub_name)
+
             out_dir = self.cfg['options']['out_dir']
 
             # Important: to find session-dirs, they should be named
@@ -93,6 +93,8 @@ class BIDSConstructor(object):
 
             if not sess_dirs:
                 # If there are no session dirs, use sub_dir
+                if self._debug:
+                    print("Didn't find any session-dirs; going for subject-dirs")
                 cdirs = [sub_dir]
             else:
                 cdirs = sess_dirs
@@ -100,12 +102,10 @@ class BIDSConstructor(object):
             for cdir in cdirs:
 
                 if 'ses-' in op.basename(cdir):
-                    out_dir = op.join(out_dir, op.basename(cdir))
+                    out_dir = op.join(out_dir, sub_name, op.basename(cdir))
                 else:
-                    if not 'sub-' in sub_name:
-                        sub_name = self._extract_sub_nr(sub_name)
                     out_dir = op.join(out_dir, sub_name)
-                    
+
                 overwrite = self.cfg['options']['overwrite']
                 already_exists = op.isdir(out_dir)
 
@@ -124,6 +124,12 @@ class BIDSConstructor(object):
                 # First move stuff to bids_converted dir ...
                 data_dirs = [self._move_and_rename(cdir, dtype, sub_name)
                              for dtype in self.data_types]
+
+                # Check if there are still _epi files in func
+                _epi_files = glob(op.join(out_dir, 'func', '*_epi.*'))
+                fmap_dir = op.join(out_dir, 'fmap')
+                _ = [shutil.move(f, op.join(fmap_dir, op.basename(f)).replace('task', 'dir'))
+                     for f in _epi_files]
 
                 # ... and then transform/convert everything
                 data_dirs = [self._transform(data_dir)
@@ -146,38 +152,38 @@ class BIDSConstructor(object):
             self.cfg = json.load(config, object_pairs_hook=OrderedDict)
 
         options = self.cfg['options'].keys()
-        if not 'mri_type' in options:
+        if 'mri_type' not in options:
             self.cfg['options']['mri_type'] = 'parrec'
 
-        if not 'log_type' in options:
+        if 'log_type' not in options:
             self.cfg['options']['log_type'] = None
 
-        if not 'n_cores' in options:
+        if 'n_cores' not in options:
             self.cfg['options']['n_cores'] = -1
 
-        if not 'subject_stem' in options:
+        if 'subject_stem' not in options:
             self.cfg['options']['subject_stem'] = 'sub'
 
-        if not 'out_dir' in options:
+        if 'out_dir' not in options:
             self.cfg['options']['out_dir'] = op.join(self.project_dir,
                                                      'bids_converted')
         else:
             self.cfg['options']['out_dir'] = op.join(self.project_dir,
                                                      self.cfg['options']['out_dir'])
 
-        if not 'overwrite' in options:
+        if 'overwrite' not in options:
             self.cfg['options']['overwrite'] = False
 
-        if not 'spinoza_data' in options:
+        if 'spinoza_data' not in options:
             self.cfg['options']['spinoza_data'] = False
 
         self.metadata['toplevel'] = {'BidsConverterVersion': __version__}
         if 'metadata' in self.cfg.keys():
             self.metadata['toplevel'].update(self.cfg['metadata'])
-        
+
         DTYPES = ['func', 'anat', 'fmap', 'dwi']
         self.data_types = [c for c in self.cfg.keys() if c in DTYPES]
-        
+
         if self.cfg['options']['spinoza_data']:
             # If data is from Spinoza centre, set some defaults to ease the process!
             self.metadata['func'] = {'PhaseEncodingDirection': 'j',
@@ -229,10 +235,11 @@ class BIDSConstructor(object):
 
         # Set some attributes directly for readability
         self._mappings = self.cfg['mappings']
-        self._debug = self.cfg['options']['debug']
+        self._debug = bool(self.cfg['options']['debug'])
         self._out_dir = self.cfg['options']['out_dir']
 
-        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0', 'eyedata', 'epi']:
+        for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0',
+                      'eyedata', 'epi']:
             if ftype not in self.cfg['mappings'].keys():
                 # Set non-existing mappings to None
                 self.cfg['mappings'][ftype] = None
@@ -240,7 +247,7 @@ class BIDSConstructor(object):
     def _move_and_rename(self, cdir, dtype, sub_name):
         """ Does the actual work of processing/renaming/conversion. """
 
-        if not 'sub-' in sub_name:
+        if 'sub-' not in sub_name:
             sub_name = self._extract_sub_nr(sub_name)
 
         # The number of coherent element for a given data-type (e.g. runs in
@@ -267,7 +274,7 @@ class BIDSConstructor(object):
             # fields ...
             del kv_pairs['id']
 
-            # common_name is simply sub-[0-9,0-9,0-9]
+            # common_name is simply sub-[0-9][0-9][0-9]
             common_name = copy(sub_name)
 
             # Add session-id pair to name if there are sessions!
@@ -360,7 +367,6 @@ class BIDSConstructor(object):
     def _transform(self, data_dir):
         """ Transforms files to appropriate format (nii.gz or tsv). """
 
-        dtype = op.basename(data_dir)
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
         self._log2tsv(data_dir, type=self.cfg['options']['log_type'])
 
@@ -388,24 +394,24 @@ class BIDSConstructor(object):
         jsons = glob(op.join(data_dir, '*.json'))
         func_files = glob(op.join(op.dirname(data_dir), 'func', '*_bold.nii.gz'))
 
-        for json in jsons:
+        for json_i in jsons:
             this_metadata = copy(dtype_metadata)
 
-            if '_bold' in json:
-                func_file = json.replace('.json', '.nii.gz')
+            if '_bold' in json_i:
+                func_file = json_i.replace('.json', '.nii.gz')
                 TR = nib.load(func_file).header['pixdim'][4]
                 n_slices = nib.load(func_file).header['dim'][3]
                 slice_times = np.linspace(0, TR, n_slices)
                 this_metadata['SliceTiming'] = slice_times.tolist()
 
             elif dtype == 'fmap':
-                if 'phasediff' in json:
+                if 'phasediff' in json_i:
                     this_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
                                                     for f in func_files]
-                elif '_epi' in json:
-                    int_for = op.basename(json.replace('_epi.json','_bold.nii.gz'))
+                elif '_epi' in json_i:
+                    int_for = op.basename(json_i.replace('_epi.json','_bold.nii.gz'))
                     this_metadata['IntendedFor'] = 'func/%s' % int_for
-            append_to_json(json, this_metadata)
+            append_to_json(json_i, this_metadata)
 
     def _compress(self, f):
 
@@ -463,8 +469,8 @@ class BIDSConstructor(object):
                 plc = Pres2tsv(in_file=log, event_dir=event_dir)
                 plc.parse()
         else:
-            warnings.warn("Conversion of logfiles other than type='Presentation'"
-                          " is not yet supported.")
+            warnings.warn("Conversion of logfiles other than type="
+                          "'Presentation' is not yet supported.")
 
     def _edf2tsv(self, directory):
 
@@ -505,4 +511,3 @@ class BIDSConstructor(object):
         nr = sub_name.split(sub_stem)[-1]
         nr = nr.replace('-', '').replace('_', '')
         return 'sub-' + nr
-
