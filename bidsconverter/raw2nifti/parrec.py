@@ -68,15 +68,12 @@ def _rename_b0_files(base_dir):
     b0_files = sorted(glob(op.join(base_dir, '*_ph*.nii.gz')))
     if len(b0_files) == 2:
         # Assume Philips magnitude img
-
         for i, f in enumerate(b0_files):
             base = '_'.join([s for s in op.basename(f).split('.')[0].split('_')
                              if s[:3] in ['sub', 'ses', 'run', 'acq']])
             new_name = op.join(op.dirname(f), base.replace('_ph', ''))
             if i == 0:
-                os.rename(f, new_name + '_magnitude1.nii.gz')
-                shutil.copyfile(new_name + '_magnitude1.nii.gz',
-                                new_name + '_magnitude2.nii.gz')
+                os.rename(f, new_name + '_magnitude.nii.gz')
             else:
                 os.rename(f, new_name + '_phasediff.nii.gz')
     else:
