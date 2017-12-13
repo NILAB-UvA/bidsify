@@ -5,9 +5,9 @@ import json
 import pandas as pd
 import numpy as np
 from glob import glob
-from numbers import Number
 
-NUM_TYPE = (np.float64, np.float32, np.float, np.int, np.int64, np.int16, float, int)
+NUM_TYPE = (np.float64, np.float32, np.float, np.int, np.int64, np.int16,
+            float, int)
 
 
 class Pres2tsv(object):
@@ -99,7 +99,6 @@ class Pres2tsv(object):
                 con_durations = con_durations * len(con_names)
 
         f = self.in_file
-        base_dir = op.dirname(f)
 
         # If .clean() has not been called (and thus logfile hasn't been loaded,
         # load in the logfile now.
