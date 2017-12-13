@@ -73,7 +73,7 @@ def _rename_b0_files(base_dir):
                              if s[:3] in ['sub', 'ses', 'run', 'acq']])
             new_name = op.join(op.dirname(f), base.replace('_ph', ''))
             if i == 0:
-                os.rename(f, new_name + '_magnitude.nii.gz')
+                os.rename(f, new_name + '_magnitude1.nii.gz')
             else:
                 os.rename(f, new_name + '_phasediff.nii.gz')
     else:
