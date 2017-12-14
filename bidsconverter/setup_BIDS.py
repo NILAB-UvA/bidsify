@@ -102,15 +102,15 @@ class BIDSConstructor(object):
             for cdir in cdirs:
 
                 if 'ses-' in op.basename(cdir):
-                    out_dir = op.join(out_dir, sub_name, op.basename(cdir))
+                    this_out_dir = op.join(out_dir, sub_name, op.basename(cdir))
                 else:
-                    out_dir = op.join(out_dir, sub_name)
+                    this_out_dir = op.join(out_dir, sub_name)
 
                 overwrite = self.cfg['options']['overwrite']
                 already_exists = op.isdir(out_dir)
 
                 if already_exists and not overwrite:
-                    print('%s already converted - skipping ...' % out_dir)
+                    print('%s already converted - skipping ...' % this_out_dir)
                     continue
 
                 if self.cfg['options']['mri_type'] == 'dicom':
@@ -125,12 +125,6 @@ class BIDSConstructor(object):
                 data_dirs = [self._move_and_rename(cdir, dtype, sub_name)
                              for dtype in self.data_types]
 
-                # Check if there are still _epi files in func
-                _epi_files = glob(op.join(out_dir, 'func', '*_epi.*'))
-                fmap_dir = op.join(out_dir, 'fmap')
-                _ = [shutil.move(f, op.join(fmap_dir, op.basename(f)).replace('task', 'dir'))
-                     for f in _epi_files]
-
                 # ... and then transform/convert everything
                 data_dirs = [self._transform(data_dir)
                              for data_dir in data_dirs]
@@ -138,6 +132,12 @@ class BIDSConstructor(object):
                 # ... and extract some extra meta-data
                 _ = [self._extract_metadata(data_dir)
                      for data_dir in data_dirs]
+
+                # Check if there are still _epi files in func
+                _epi_files = glob(op.join(this_out_dir, 'func', '*_epi.*'))
+                fmap_dir = op.join(this_out_dir, 'fmap')
+                _ = [shutil.move(f, op.join(fmap_dir, op.basename(f)).replace('task', 'dir'))
+                     for f in _epi_files]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
