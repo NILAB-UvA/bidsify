@@ -2,12 +2,8 @@ from __future__ import print_function, division
 import os
 import os.path as op
 import subprocess
-import shutil
-import json
 from glob import glob
-import nibabel as nib
-from fnmatch import fnmatch
-from ..utils import check_executable, append_to_json
+from ..utils import check_executable
 
 
 def parrec2nii(PAR_file, cfg, compress=True):
@@ -20,7 +16,7 @@ def parrec2nii(PAR_file, cfg, compress=True):
     REC_file = '%s.REC' % op.splitext(PAR_file)[0]
 
     if op.isfile(ni_name):
-        _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+        [os.remove(f) for f in [REC_file] + [PAR_file]]
         return 0
 
     cmd = _construct_conversion_cmd(base_name, PAR_file, compress)
@@ -28,7 +24,7 @@ def parrec2nii(PAR_file, cfg, compress=True):
         subprocess.call(cmd, stdout=devnull)
 
     _rename_b0_files(base_dir=base_dir)
-    _ = [os.remove(f) for f in [REC_file] + [PAR_file]]
+    [os.remove(f) for f in [REC_file] + [PAR_file]]
 
 
 def _construct_conversion_cmd(base_name, PAR_file, compress):

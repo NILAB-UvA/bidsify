@@ -37,7 +37,8 @@ class Pres2tsv(object):
         cfg_files = glob(op.join(self.event_dir, '*.json'))
         cfg = [c for c in cfg_files if task_id in c]
         if not cfg or len(cfg) > 1:
-            msg = "Not a single {task}.json file found for task '%s'! Found: %r. Skipping ..." % (task_id, cfg)
+            msg = ("Not a single {task}.json file found for task '%s'! "
+                   "Found: %r. Skipping ..." % (task_id, cfg))
             print(msg)
             skip = True
         else:
@@ -64,7 +65,8 @@ class Pres2tsv(object):
                     tmp_codes = []
 
                     for ci in c:
-                        tmp_codes.extend(np.arange(ci[0], ci[1] + 1, dtype=np.int))
+                        tmp_codes.extend(np.arange(ci[0], ci[1] + 1,
+                                                   dtype=np.int))
                     c_codes.append(tmp_codes)
                 else:
                     c_codes.append(np.arange(c[0], c[1] + 1, dtype=np.int))
@@ -109,10 +111,11 @@ class Pres2tsv(object):
                                skip_blank_lines=True)
 
         # Clean up unnecessary columns (use list-compr to check if col exists)
-        to_drop = ['Uncertainty', 'Subject', 'Trial', 'Uncertainty.1', 'ReqTime',
-                   'ReqDur', 'Stim Type', 'Pair Index']
+        to_drop = ['Uncertainty', 'Subject', 'Trial', 'Uncertainty.1',
+                   'ReqTime', 'ReqDur', 'Stim Type', 'Pair Index']
         _ = [df.drop(col, axis=1, inplace=True) for col in to_drop if col in df.columns]
 
+        print(df)
         # Ugly hack to find pulsecode, because some numeric codes are written as str
         df['Code'] = df['Code'].astype(str)
         df['Code'] = [np.float(x) if x.isdigit() else x for x in df['Code']]

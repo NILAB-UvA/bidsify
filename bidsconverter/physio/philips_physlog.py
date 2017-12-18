@@ -6,13 +6,13 @@ import pandas as pd
 
 def convert_phy(f):
 
-    df = pd.read_csv(f, delim_whitespace=True, skiprows=5, header=None,
-                     low_memory=False)
-    df.dropna(axis=1, inplace=True, how='all')
-    header = open(f, "r")
-    linelist = header.readlines()
-    header = linelist[4].replace('#', '').rstrip().split(' ')
-    df.columns = [s for s in header if s]
+    try:  # Try to skip 5 rows (new version)
+        df = pd.read_csv(f, delim_whitespace=True, skiprows=5, header=0,
+                         low_memory=False)
+        test = df['gx']
+    except KeyError:  # Else skip 4 rows (old version)
+        df = pd.read_csv(f, delim_whitespace=True, skiprows=4, header=0,
+                         low_memory=False)
 
     gradients = ['gx', 'gy', 'gz']
     gradient_signal = np.array([df[g] for g in gradients]).sum(axis=0)
