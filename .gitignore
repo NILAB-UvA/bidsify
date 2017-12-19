@@ -104,3 +104,4 @@ ENV/
 # Rope project settings
 .ropeproject
 >>>>>>> 634bdb0a9f1153977d81ff1be1104bf144bfd039
+bidsconverter/test_data/

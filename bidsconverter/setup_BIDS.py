@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import json
 import os
 import os.path as op
@@ -19,7 +17,7 @@ from .behav2tsv import Pres2tsv
 from .physio import convert_phy
 from .utils import check_executable, append_to_json
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 class BIDSConstructor(object):
@@ -53,11 +51,10 @@ class BIDSConstructor(object):
         self.project_dir = project_dir
         self.cfg = None
         self._cfg_file = cfg_file
-        self._parrec2nii = check_executable('parrec2nii')
-        self._edf2asc = check_executable('edf2asc')
         self._sub_dirs = None
         self._mappings = None
         self._debug = None
+        self._meta_data = None
 
         if not check_executable('dcm2niix'):
             msg = ("The program 'dcm2niix' was not found on this computer; "
@@ -85,11 +82,9 @@ class BIDSConstructor(object):
             if 'sub-' not in sub_name:
                 sub_name = self._extract_sub_nr(sub_name)
 
-            out_dir = self.cfg['options']['out_dir']
-
             # Important: to find session-dirs, they should be named
             # ses-*something
-            sess_dirs = glob(op.join(sub_dir, 'ses-*'))
+            sess_dirs = sorted(glob(op.join(sub_dir, 'ses-*')))
 
             if not sess_dirs:
                 # If there are no session dirs, use sub_dir
@@ -103,19 +98,20 @@ class BIDSConstructor(object):
             for cdir in cdirs:
 
                 if 'ses-' in op.basename(cdir):
-                    this_out_dir = op.join(out_dir, sub_name,
+                    this_out_dir = op.join(self._out_dir, sub_name,
                                            op.basename(cdir))
                 else:
-                    this_out_dir = op.join(out_dir, sub_name)
+                    this_out_dir = op.join(self._out_dir, sub_name)
 
                 overwrite = self.cfg['options']['overwrite']
-                already_exists = op.isdir(out_dir)
+                already_exists = op.isdir(this_out_dir)
 
                 if already_exists and not overwrite:
                     print('%s already converted - skipping ...' % this_out_dir)
                     continue
 
-                if self.cfg['options']['mri_type'] == 'dicom':
+                mri_type = self.cfg['options']['mri_type']
+                if mri_type in ['dicom', 'Dicom', 'DICOM']:
                     # If dicom-files, then FIRST convert it
                     cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
                            '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
@@ -126,7 +122,6 @@ class BIDSConstructor(object):
                 # First move stuff to bids_converted dir ...
                 data_dirs = [self._move_and_rename(cdir, dtype, sub_name)
                              for dtype in self.data_types]
-
                 # ... and then transform/convert everything
                 data_dirs = [self._transform(data_dir)
                              for data_dir in data_dirs]
@@ -134,17 +129,14 @@ class BIDSConstructor(object):
                 # ... and extract some extra meta-data
                 [self._extract_metadata(data_dir) for data_dir in data_dirs]
 
-                # Check if there are still _epi files in func
-                _epi_files = glob(op.join(this_out_dir, 'func', '*_epi.*'))
-                fmap_dir = op.join(this_out_dir, 'fmap')
-                [shutil.move(f, op.join(fmap_dir,
-                                        op.basename(f)).replace('task', 'dir'))
-                 for f in _epi_files]
+                # Last, move topups to fmap dirs
+                epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
+                fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
+                [shutil.move(f, op.join(fmap_dir, op.basename(f)))
+                 for f in epis]
 
     def _parse_cfg_file(self):
         """ Parses config file and sets defaults. """
-
-        self.metadata = {}
 
         if not op.isfile(self._cfg_file):
             msg = "Couldn't find config-file: %s" % self._cfg_file
@@ -180,39 +172,30 @@ class BIDSConstructor(object):
         if 'spinoza_data' not in options:
             self.cfg['options']['spinoza_data'] = False
 
-        self.metadata['toplevel'] = {'BidsConverterVersion': __version__}
+        # Now, extract and set metadata
+        self._metadata = dict()
+
+        # Always add bidsconverter version
+        self._metadata['toplevel'] = dict(BidsConverterVersion=__version__)
+
         if 'metadata' in self.cfg.keys():
-            self.metadata['toplevel'].update(self.cfg['metadata'])
+            self._metadata['toplevel'].update(self.cfg['metadata'])
+
+        if self.cfg['options']['spinoza_data']:
+            # If data is from Spinoza centre, set some sensible defaults!
+            spi_cfg = op.join(op.dirname(__file__), 'data',
+                              'spinoza_metadata.json')
+            with open(spi_cfg) as f:
+                self.spi_md = json.load(f)
 
         DTYPES = ['func', 'anat', 'fmap', 'dwi']
         self.data_types = [c for c in self.cfg.keys() if c in DTYPES]
-
-        # Set metadata
-        if self.cfg['options']['spinoza_data']:
-            # If data is from Spinoza centre, set some sensible defaults!
-            self.metadata['func'] = {'PhaseEncodingDirection': 'j',
-                                     'EffectiveEchoSpacing': 0.00034545,
-                                     'SliceEncodingDirection': 'k'}
-
-            if 'fmap' in self.cfg.keys():
-                self.metadata['fmap'] = {}
-                if 'epi' in self.cfg['mappings'].keys():
-                    # Assume it uses topups
-                    self.metadata['fmap'].update(
-                        {'PhaseEncodingDirection': 'j-'}
-                    )
-
-                if 'B0' in self.cfg['mappings'].keys():
-                    # Assume it uses a B0 (1 phasediff, 1 mag)
-                    self.metadata['fmap'].update(
-                        {'EchoTime1': 0.003, 'EchoTime2': 0.008}
-                    )
 
         for dtype in self.data_types:
 
             if 'metadata' in self.cfg[dtype].keys():
                 # Set specific dtype metadata
-                self.metadata[dtype] = self.cfg[dtype]['metadata']
+                self._metadata[dtype] = self.cfg[dtype]['metadata']
 
             for element in self.cfg[dtype].keys():
                 # Check if every element has an 'id' field!
@@ -230,7 +213,7 @@ class BIDSConstructor(object):
 
                 if 'metadata' in self.cfg[dtype][element]:
                     mdata = self.cfg[dtype][element]['metadata']
-                    self.metadata[dtype][element] = mdata
+                    self._metadata[dtype][element] = mdata
 
                 if dtype == 'func':
                     # Check if func elements have a task field ...
@@ -377,7 +360,9 @@ class BIDSConstructor(object):
         """ Transforms files to appropriate format (nii.gz or tsv). """
 
         self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
-        self._log2tsv(data_dir, logtype=self.cfg['options']['log_type'])
+
+        if self._mappings['events'] is not None:
+            self._log2tsv(data_dir, logtype=self.cfg['options']['log_type'])
 
         if self._mappings['eyedata'] is not None:
             self._edf2tsv(data_dir)
@@ -389,39 +374,51 @@ class BIDSConstructor(object):
 
     def _extract_metadata(self, data_dir):
 
-        # Usually, directions (e.g. slice-order acq.) is denoted with x/y/z,
-        # but BIDs wants it formatted as i/j/k
-        dir_mappings = {'x': 'i', 'y': 'j', 'z': 'k',
-                        'x-': 'i-', 'y-': 'j-', 'z-': 'k-'}
-
         dtype = op.basename(data_dir)
-        dtype_metadata = self.metadata['toplevel']
-
-        if self.metadata.get(dtype, None) is not None:
+        dtype_metadata = self._metadata['toplevel']
+        if self._metadata.get(dtype, None) is not None:
             dtype_metadata.update(self.metadata[dtype])
 
-        jsons = glob(op.join(data_dir, '*.json'))
-        func_files = glob(op.join(op.dirname(data_dir), 'func',
-                                  '*_bold.nii.gz'))
+        for file_type in self._mappings.keys():
+            jsons = glob(op.join(data_dir, '*%s*.json' % file_type))
+            ftype_metadata = copy(dtype_metadata)
 
-        for json_i in jsons:
-            this_metadata = copy(dtype_metadata)
+            if dtype in self._metadata.keys():
+                if self._metadata[dtype].get(file_type, None) is not None:
+                    ftype_metadata.update(self._metadata[dtype][file_type])
 
-            if '_bold' in json_i:
-                func_file = json_i.replace('.json', '.nii.gz')
-                TR = nib.load(func_file).header['pixdim'][4]
-                n_slices = nib.load(func_file).header['dim'][3]
-                slice_times = np.linspace(0, TR, n_slices)
-                this_metadata['SliceTiming'] = slice_times.tolist()
+            func_files = glob(op.join(op.dirname(data_dir),
+                                      'func', '*_bold.nii.gz'))
+            if dtype == 'fmap' and file_type == 'phasediff':
+                ftype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
+                                                 for f in func_files]
+            for this_json in jsons:
+                # This entire loop is ugly; need to refactor
+                this_metadata = copy(ftype_metadata)
 
-            elif dtype == 'fmap':
-                if 'phasediff' in json_i:
-                    this_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
-                                                    for f in func_files]
-                elif '_epi' in json_i:
-                    int_for = op.basename(json_i.replace('_epi.json','_bold.nii.gz'))
+                if dtype == 'func' and file_type == 'epi':
+                    int_for = op.basename(this_json.replace('_epi.json',
+                                                            '_bold.nii.gz'))
                     this_metadata['IntendedFor'] = 'func/%s' % int_for
-            append_to_json(json_i, this_metadata)
+
+                    if hasattr(self, 'spi_md'):
+                        this_metadata.update(self.spi_md['func']['epi'])
+
+                elif dtype == 'func' and file_type == 'bold':
+
+                    if hasattr(self, 'spi_md'):
+                        mbnames = ['multiband', 'MB3', 'Multiband']
+                        if any([s in this_json for s in mbnames]):
+                            this_metadata.update(self.spi_md['func']['bold']['MB'])
+                        else:  # assume sequential
+                            this_metadata.update(self.spi_md['func']['bold']['sequential'])
+
+                elif dtype == 'fmap' and file_type == 'phasediff':
+
+                    if hasattr(self, 'spi_md'):
+                        this_metadata.update(self.spi_md['fmap']['phasediff'])
+
+                append_to_json(this_json, this_metadata)
 
     def _compress(self, f):
 
@@ -466,11 +463,10 @@ class BIDSConstructor(object):
         """ Converts behavioral logs to event_files. """
 
         if logtype is None:
-            pass
-
+            if self._debug:
+                print("Log_type is not set, so cannot convert events-file!")
         elif logtype == 'Presentation':
-            logs = glob(op.join(directory,
-                                '*%s*' % self.cfg['mappings']['events']))
+            logs = glob(op.join(directory, '*events*'))
             event_dir = op.join(self.project_dir, 'task_info')
 
             if not op.isdir(event_dir):

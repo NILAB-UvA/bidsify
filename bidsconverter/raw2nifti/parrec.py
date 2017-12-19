@@ -58,7 +58,7 @@ def _rename_b0_files(base_dir):
     else:
         ph_json = jsons[0]
 
-    ph_json_new = ph_json.replace('_ph', '_phasediff')
+    ph_json_new = ph_json.replace('_ph.json', '.json')
     ph_json = os.rename(ph_json, ph_json_new)
 
     b0_files = sorted(glob(op.join(base_dir, '*_ph*.nii.gz')))
