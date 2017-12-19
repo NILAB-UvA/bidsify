@@ -59,13 +59,15 @@ def _rename_b0_files(base_dir):
         ph_json = jsons[0]
 
     ph_json_new = ph_json.replace('_ph.json', '.json')
+    ph_json_new = ph_json_new[3:] if ph_json[:3] == '_ph' else ph_json_new
     ph_json = os.rename(ph_json, ph_json_new)
 
     b0_files = sorted(glob(op.join(base_dir, '*_ph*.nii.gz')))
     if len(b0_files) == 2:
         # Assume Philips magnitude img
         for i, f in enumerate(b0_files):
-            base = '_'.join([s for s in op.basename(f).split('.')[0].split('_')
+            tmp_name = f[3:] if f[:3] == '_ph' else f
+            base = '_'.join([s for s in op.basename(tmp_name).split('.')[0].split('_')
                              if s[:3] in ['sub', 'ses', 'run', 'acq']])
             new_name = op.join(op.dirname(f), base.replace('_ph', ''))
             if i == 0:
