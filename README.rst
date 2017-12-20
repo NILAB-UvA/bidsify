@@ -16,6 +16,25 @@ that differs from our standard format (at the Spinoza Centre in Amsterdam) and t
 in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request 
 with your proposed solution!
 
+Features
+--------
+So far, BidsConverter is able to do the following:
+
+- Rename raw files to the format specified by BIDS (using the information in the config.json)
+- Convert raw Philips PAR/REC files and DICOM files (experimental; not fully tested) to nifti.gz format
+- Convert Presentation logfiles to BIDS-style event-files (.tsv files)
+- Convert Philips physiology files to BIDS-style physio-files (.tsv.gz file; experimental)
+
+It supports the following types of data(sets):
+
+- Multi-subject, multi-session datasets
+- Conversion and metadata extraction of (Philips style) 'B0 fieldmap' scans into 'phasediff' and 'magnitude' images
+- Conversion and metadata extraction of 'topup' (pepolar) fieldmaps
+
+It does not support (yet):
+
+- Extraction of slicetime information (because we advise against slice-time correction)
+
 The config.json file
 --------------------
 The BidsConverter only needs a ``config.json`` file, which contains
