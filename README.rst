@@ -380,9 +380,11 @@ this repository directory (and then ``python setup.py install``) or installing i
 
 In terms of dependencies: BidsConverter currently only works with the
 `dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which 
-can be installed on UNIX-systems using neurodebian::
+can be installed on Linux-systems using neurodebian::
 
     $ sudo apt install dcm2niix
+
+For other platforms (Mac, Windows), check out the dcm2niix `Github page <https://github.com/rordenlab/dcm2niix/releases>`_.
 
 Apart from dcm2niix, BidsConverter depends on the following Python packages:
 
