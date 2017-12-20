@@ -8,7 +8,8 @@ This package offers a tool to convert your raw (f)MRI data to the
 "Brain Imaging Data Structuce" (BIDS_) format. Using only a 
 simple json config-file, it renames, reformats, and restructures 
 your files such that it fits the BIDS naming scheme and conforms 
-to file-formats specified by BIDS.
+to file-formats specified by BIDS. This tool has been used to
+successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
 
 The config.json file
 --------------------
