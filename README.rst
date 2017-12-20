@@ -11,6 +11,11 @@ your files such that it fits the BIDS naming scheme and conforms
 to file-formats specified by BIDS. This tool has been used to
 successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
 
+BidsConverter is still very much in development, so there are probably still some bugs for data
+that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
+in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request 
+with your proposed solution!
+
 The config.json file
 --------------------
 The BidsConverter only needs a ``config.json`` file, which contains
