@@ -25,7 +25,7 @@ install:
   - copy c:\projects\dcm2niix\CMakeLists.txt c:\projects\dcm2niix\build\CMakeLists.txt
   - mkdir c:\projects\dcm2niix\build\SuperBuild
   - xcopy c:\projects\dcm2niix\SuperBuild c:\projects\dcm2niix\build\SuperBuild
-  - cmake -G "MinGW Makefiles" ..\
+  - cmake -G "Unix Makefiles" ..\
   - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
   - set PATH=C:\MinGW\bin;%PATH%
   - make
