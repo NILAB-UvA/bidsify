@@ -20,9 +20,9 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy nibabel joblib pytest pytest-cov"
+  - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy joblib pytest pytest-cov"
   - activate test-environment
-  - pip install coverage
+  - pip install coverage nibabel
   - python setup.py install
 
 test_script:
