@@ -23,6 +23,7 @@ install:
   - cd c:\projects\dcm2niix\build
   - mkdir build && cd build
   - copy c:\projects\dcm2niix\CMakeLists.txt c:\projects\dcm2niix\build\CMakeLists.txt
+  - xcopy c:\projects\dcm2niix\SuperBuild c:\projects\dcm2niix\build
   - cmake ..
   - make
   - cd c:\projects\BidsConverter
