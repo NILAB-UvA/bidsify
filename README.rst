@@ -13,6 +13,12 @@ BidsConverter - converts your (raw) data to the BIDS-format
 .. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
     :target: https://ci.appveyor.com/project/lukassnoek/bidsconverter
 
+.. image:: https://img.shields.io/badge/python-2.7-blue.svg
+    :target: https://www.python.org/download/releases/2.7
+
+.. image:: https://img.shields.io/badge/python-3.5-blue.svg
+    :target: https://www.python.org/downloads/release/python-350
+
 This package offers a tool to convert your raw (f)MRI data to the
 "Brain Imaging Data Structuce" (BIDS_) format. Using only a
 simple json config-file, it renames, reformats, and restructures
