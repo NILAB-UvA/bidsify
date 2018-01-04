@@ -1,0 +1,31 @@
+{
+    "func": {
+
+        "bold": {
+            "sequential": {
+                "PhaseEncodingDirection": "j",
+                "EffectiveEchoSpacing": 0.00034545,
+                "SliceEncodingDirection": "k"
+            },
+
+            "MB": {
+                "PhaseEncodingDirection": "j",
+                "EffectiveEchoSpacing": 0.00034545
+            }
+        },
+
+        "epi": {
+            "PhaseEncodingDirection": "j-",
+            "EffectiveEchoSpacing": 0.0034545
+        }
+
+    },
+
+    "fmap": {
+
+        "phasediff": {
+            "EchoTime1": 0.003,
+            "EchoTime2": 0.008
+        }
+    }
+}

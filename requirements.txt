@@ -2,3 +2,4 @@ numpy
 nibabel
 joblib
 pybids
+pandas
