@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = bidsconverter/*
+include = bidsconverter/*
+omit = */setup.py
+[report]
+include = bidsconverter/*

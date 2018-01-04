@@ -1,4 +1,2 @@
-from .setup_BIDS import BIDSConstructor
-
-__all__ = ['BIDSConstructor']
-
+from __future__ import absolute_import, division, print_function
+from .bidsconverter import *  # noqa
