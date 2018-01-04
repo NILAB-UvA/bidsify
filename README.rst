@@ -5,7 +5,8 @@ BidsConverter - converts your (raw) data to the BIDS-format
 .. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
 .. image:: https://coveralls.io/repos/github/lukassnoek/BidsConverter/badge.svg?branch=refactor
-:target: https://coveralls.io/github/lukassnoek/BidsConverter?branch=refactor
+    :target: https://coveralls.io/github/lukassnoek/BidsConverter?branch=refactor
+
 .. image:: https://travis-ci.org/lukassnoek/BidsConverter.svg?branch=refactor
     :target: https://travis-ci.org/lukassnoek/BidsConverter
 

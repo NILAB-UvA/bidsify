@@ -21,7 +21,9 @@ install:
   - git clone https://github.com/rordenlab/dcm2niix
   - mkdir c:\projects\dcm2niix\build
   - cd c:\projects\dcm2niix\build
-  - cmake -G "Visual Studio 14 2015 Win64" -DBATCH_VERSION=ON -DUSE_OPENJPEG=ON ..\
+  - mkdir build && cd build
+  - cmake ..
+  - make
   - cd c:\projects\BidsConverter
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
   - conda config --set always_yes yes --set changeps1 no
