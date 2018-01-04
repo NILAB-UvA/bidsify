@@ -18,7 +18,7 @@ init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %MINICONDA%"
 
 install:
-  - git clone https://github.com/rordenlab/dcm2niix
+  - git clone https://github.com/rordenlab/dcm2niix c:\projects
   - mkdir c:\projects\dcm2niix\build
   - cd c:\projects\dcm2niix\build
   - mkdir build && cd build
