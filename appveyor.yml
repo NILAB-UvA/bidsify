@@ -26,7 +26,7 @@ install:
   - mkdir c:\projects\dcm2niix\build\SuperBuild
   - xcopy c:\projects\dcm2niix\SuperBuild c:\projects\dcm2niix\build\SuperBuild
   - cmake -G "Visual Studio 14 2015 Win64" -DBATCH_VERSION=ON -DUSE_OPENJPEG=ON ..\
-  - MSBuild c:\projects\dcm2niix\build\dcm2niix.sln
+  - MSBuild c:\projects\dcm2niix\build\build\dcm2niix.sln
   #- copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
   #- set PATH=C:\MinGW\bin;%PATH%
   #- make
