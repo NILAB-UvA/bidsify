@@ -1,5 +1,7 @@
 build: false
 
+clone_folder: c:\projects\BidsConverter
+
 environment:
   matrix:
     - PYTHON: "C:\\Python27"
@@ -16,6 +18,11 @@ init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %MINICONDA%"
 
 install:
+  - git clone https://github.com/rordenlab/dcm2niix
+  - mkdir c:\projects\dcm2niix\build
+  - cd c:\projects\dcm2niix\build
+  - cmake -G "Visual Studio 14 2015 Win64" -DBATCH_VERSION=ON -DUSE_OPENJPEG=ON ..\
+  - cd c:\projects\BidsConverter
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
