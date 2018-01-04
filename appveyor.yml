@@ -26,6 +26,8 @@ install:
   - mkdir c:\projects\dcm2niix\build\SuperBuild
   - xcopy c:\projects\dcm2niix\SuperBuild c:\projects\dcm2niix\build\SuperBuild
   - cmake ..
+  - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
+  - set PATH=C:\MinGW\bin;%PATH%
   - make
   - cd c:\projects\BidsConverter
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
