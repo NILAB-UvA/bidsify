@@ -3,7 +3,7 @@ import os
 import os.path as op
 import subprocess
 from glob import glob
-from ..utils import check_executable
+from .utils import check_executable
 
 
 def parrec2nii(PAR_file, cfg, compress=True):

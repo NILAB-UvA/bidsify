@@ -29,13 +29,12 @@ CLASSIFIERS = ["Development Status :: 3 - Alpha",
 description = "BidsConverter: Converts your (raw) data to the BIDS-format"
 
 # Long description will go up on the pypi page
-pardir = op.dirname(__file__)
+pardir = op.dirname(op.dirname(__file__))
 with open(op.join(pardir, 'README.rst')) as f:
     long_description = f.read()
 
 with open(op.join(pardir, 'requirements.txt')) as f:
     REQUIRES = f.readlines()
-
 
 NAME = "BidsConverter"
 MAINTAINER = "Lukas Snoek"

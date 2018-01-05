@@ -45,3 +45,8 @@ RUN conda install -c numpy \
     conda clean --all -y
 
 # Clone Github repo here and install BidsConverter
+RUN git clone https://github.com/lukassnoek/BidsConverter.github && \
+    cd BidsConverter && \
+    python setup.py install
+
+ENTRYPOINT ["convert2bids"]
