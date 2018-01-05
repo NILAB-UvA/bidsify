@@ -23,7 +23,7 @@ before_install:
   - travis_retry sudo apt-get update -qq
   - travis_retry sudo apt-get install dcm2niix
   - travis_retry sudo apt-get install nodejs
-  - sudo npm install -g bids-validator
+  - npm install -g bids-validator
 
 install:
 - travis_retry pip install $PIP_DEPS
