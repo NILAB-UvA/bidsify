@@ -50,7 +50,11 @@ def convert_mri(mri_file, debug, cfg):
                              % mri_file)
         base_cmd.extend(['-f', op.basename(fname), mri_file])
         _run_cmd(base_cmd)
-        converted_files = fname + '.nii.gz'
+        if debug:
+            converted_files = fname + '.nii'
+        else:
+            converted_files = fname + '.nii.gz'
+
         if 'phasediff' in converted_files:
             converted_files = _rename_phasediff_files(fname)
         os.remove(mri_file)
@@ -76,7 +80,7 @@ def _rename_phasediff_files(fname):
     [os.rename(src=f, dst=f.replace('_phsub', '').replace('_ph.json', '.json'))
      for f in jsons]
 
-    b0_files = sorted(glob(op.join(base_dir, '*phasediff*.nii.gz')))
+    b0_files = sorted(glob(op.join(base_dir, '*phasediff*.nii*')))
     new_files = []
     if len(b0_files) == 2:
         # Assume Philips magnitude img

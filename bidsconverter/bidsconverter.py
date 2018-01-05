@@ -6,6 +6,7 @@ import shutil
 import fnmatch
 import warnings
 import yaml
+import pandas as pd
 from copy import copy, deepcopy
 from glob import glob
 from joblib import Parallel, delayed
@@ -106,6 +107,20 @@ def convert2bids(cfg, directory, validate):
 
     [_process_directory(sub_dir, out_dir, cfg) for sub_dir in sub_dirs]
 
+    # Write example description_dataset.json to disk
+    desc_json = op.join(op.dirname(__file__), 'data',
+                        'dataset_description.json')
+    dst = op.join(cfg['options']['out_dir'], 'dataset_description.json')
+    shutil.copyfile(src=desc_json, dst=dst)
+
+    # Write participants.tsv to disk
+    sub_names = [op.basename(s) for s in sub_dirs]
+    participants_tsv = pd.DataFrame(index=range(len(sub_names)),
+                                    columns=['participant_id'])
+    participants_tsv['participant_id'] = sub_names
+    f_out = op.join(cfg['options']['out_dir'], 'participants.tsv')
+    participants_tsv.to_csv(f_out, sep='\t', index=False)
+
 
 def _process_directory(cdir, out_dir, cfg, is_sess=False):
     """ Main workhorse of BidsConverter """
@@ -125,6 +140,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         this_out_dir = op.join(out_dir, sub_name)
         print("Processing sub '%s'" % sub_name)
 
+    print("THIS OUT DIR (cdir=%s): %s" % (cdir, this_out_dir))
     # Important: to find session-dirs, they should be named
     # ses-*something*
     sess_dirs = sorted(glob(op.join(cdir, 'ses-*')))
@@ -139,8 +155,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     if already_exists and not options['overwrite']:
         print('%s already converted - skipping ...' % this_out_dir)
         return
-    elif already_exists and options['overwrite']:
-        shutil.rmtree(this_out_dir)
 
     data_dirs = [_move_and_rename(cdir, dtype, sub_name, this_out_dir, cfg)
                  for dtype in cfg['data_types']]
@@ -163,10 +177,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     [_extract_metadata(data_dir, cfg) for data_dir in data_dirs]
 
     # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
-    # epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
-    # fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
-    # [shutil.move(f, op.join(fmap_dir, op.basename(f)))
-    # for f in epis]
+    epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
+    fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
+    [shutil.move(f, op.join(fmap_dir, op.basename(f)))
+     for f in epis]
 
 
 def _parse_cfg(cfg_file, raw_data_dir):
@@ -220,7 +234,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
     if cfg['options']['spinoza_data']:
         # If data is from Spinoza centre, set some sensible defaults!
         spi_cfg = op.join(op.dirname(__file__), 'data',
-                          'spinoza_metadata.json')
+                          'spinoza_metadata.yml')
         with open(spi_cfg) as f:
             cfg['spinoza_metadata'] = yaml.load(f)
 
@@ -322,8 +336,7 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
         files = [f for f in glob(op.join(cdir, '*%s*' % idf))
                  if op.isfile(f)]
 
-        if files:
-            data_dir = _make_dir(op.join(out_dir, dtype))
+        data_dir = _make_dir(op.join(out_dir, dtype))
 
         for f in files:
             # Rename files according to mapping
@@ -386,8 +399,8 @@ def _extract_metadata(data_dir, cfg):
     # Get metadata dict
     metadata, mappings = cfg['metadata'], cfg['mappings']
 
-    if 'spinoza_metadata' in metadata.keys():
-        spi_md = metadata['spinoza_metadata']
+    if 'spinoza_metadata' in cfg.keys():
+        spi_md = cfg['spinoza_metadata']
 
     dtype = op.basename(data_dir)
 
@@ -400,9 +413,6 @@ def _extract_metadata(data_dir, cfg):
 
     # Now loop over ftypes ('filetypes', e.g. bold, physio, etc.)
     for ftype in mappings.keys():
-
-        # Find relevant jsons
-        jsons = glob(op.join(data_dir, '*_%s.json' % ftype))
 
         # Copy common dtype metadata
         ftype_metadata = copy(dtype_metadata)
@@ -430,8 +440,16 @@ def _extract_metadata(data_dir, cfg):
             ftype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
                                              for f in func_files]
 
-            if 'spinoza_metadata' in metadata.keys():
+            if 'spinoza_metadata' in cfg.keys():
                 ftype_metadata.update(spi_md['fmap']['phasediff'])
+
+        if dtype == 'dwi' and ftype == 'dwi':
+
+            if 'spinoza_metadata' in cfg.keys():
+                ftype_metadata.update(spi_md['dwi']['dwi'])
+
+        # Find relevant jsons
+        jsons = glob(op.join(data_dir, '*_%s.json' % ftype))
 
         for this_json in jsons:
 
@@ -444,10 +462,15 @@ def _extract_metadata(data_dir, cfg):
                 this_metadata['IntendedFor'] = 'func/%s' % int_for
 
             if dtype == 'func' and ftype == 'bold':
+                base = op.basename(this_json)
+                task_name = base.split('task-')[-1].split('_')[0]
+                this_metadata.update({'TaskName': task_name})
+
                 # Add spinoza-specific metadata if available
-                if 'spinoza_metadata' in metadata.keys():
-                    spi_md = metadata['spinoza_metadata']
-                    acq_type = this_json.split('acq-')[-1].split('_')[0]
+                if 'spinoza_metadata' in cfg.keys():
+                    acq_type = base.split('acq-')[-1].split('_')[0]
+                    if acq_type not in ['MB', 'epi', 'seq']:
+                        acq_type = 'seq'
                     this_metadata.update(spi_md['func']['bold'][acq_type])
 
             _append_to_json(this_json, this_metadata)
