@@ -1,79 +1,106 @@
 from __future__ import print_function, division
 import os
 import os.path as op
-import subprocess
 from glob import glob
-from .utils import check_executable
+from .utils import check_executable, _compress, _run_cmd
+
+pigz = check_executable('pigz')
 
 
-def parrec2nii(PAR_file, cfg, compress=True):
-    """ Converts par/rec files to nifti.gz. """
+def convert_mri(mri_file, debug, cfg):
 
-    base_dir = op.dirname(PAR_file)
-    base_name = op.join(base_dir, op.splitext(PAR_file)[0])
-    ni_name = base_name + '.nii.gz'
+    # If already a .nii.gz file, do nothing
+    if mri_file[:-6] == '.nii.gz':
+        converted_files = listify(mri_file)
 
-    REC_file = '%s.REC' % op.splitext(PAR_file)[0]
+    # If in "debug-mode", set compress to False to save time
+    compress = False if debug else True
+    fname, ext = op.splitext(mri_file)
 
-    if op.isfile(ni_name):
-        [os.remove(f) for f in [REC_file] + [PAR_file]]
-        return 0
-
-    cmd = _construct_conversion_cmd(base_name, PAR_file, compress)
-    with open(os.devnull, 'w') as devnull:
-        subprocess.call(cmd, stdout=devnull)
-
-    _rename_b0_files(base_dir=base_dir)
-    [os.remove(f) for f in [REC_file] + [PAR_file]]
-
-
-def _construct_conversion_cmd(base_name, PAR_file, compress):
-
-    # Pigs is a fast compression algorithm that can be used by dcm2niix
-    pigz = check_executable('pigz')
-
-    if compress:
-        if pigz:
-            cmd = ['dcm2niix', '-b', 'y', '-z', 'y', '-f',
-                   op.basename(base_name), PAR_file]
+    # If uncompressed '.nii' file, compress and return
+    if ext == '.nii':
+        if compress:
+            _compress(mri_file)
+            converted_files = mri_file + '.gz'
+            os.remove(mri_file)
         else:
-            cmd = ['dcm2niix', '-b', 'y', '-z', 'i', '-f',
-                   op.basename(base_name), PAR_file]
+            converted_files = mri_file
+
+    this_dir = op.dirname(mri_file)
+
+    # Construct general dcm2niix command
+    base_cmd = ['dcm2niix', '-b', 'y', '-ba', 'y', '-x', 'y']
+    if compress:
+        base_cmd.extend(['-z', 'y'] if pigz else ['-z', 'i'])
     else:
-        cmd = ['dcm2niix', '-b', 'y', '-f', op.basename(base_name), PAR_file]
+        base_cmd.extend(['-z', 'n'])
 
-    return cmd
+    # If we've gotten this far, mri_file must be either DICOM or par/rec
+    if ext in ['.dcm', '.DICOMDIR', '.DICOM']:
+        base_cmd.extend(['-f', '%n_%p', '%s' % mri_file])
+        _run_cmd(base_cmd)
+        # This is not general enough (only works for DICOMDIR files)
+        converted_files = glob(op.join(this_dir, '*.nii.gz'))
+        os.remove(mri_file)
+
+    if ext in ['.PAR', '.Par', '.par']:
+        rec_file = glob(fname + '.[R,r][E,e][C,c]')[0]
+        if not rec_file:
+            raise ValueError("Could not find REC file corresponding to %s"
+                             % mri_file)
+        base_cmd.extend(['-f', op.basename(fname), mri_file])
+        _run_cmd(base_cmd)
+        converted_files = fname + '.nii.gz'
+        if 'phasediff' in converted_files:
+            converted_files = _rename_phasediff_files(fname)
+        os.remove(mri_file)
+        os.remove(rec_file)
+
+    converted_files = listify(converted_files)
+    for f in converted_files:
+        if not op.isfile(f):
+            raise ValueError("Conversion didn't yield the correct name "
+                             "for file '%s'; expected '%s'"
+                             % (mri_file, f))
+
+    return converted_files
 
 
-def _rename_b0_files(base_dir):
-    """ Renames b0-files to fieldmap and magnitude img - which
-    is specific to our Philips Achieva 3T scanner!
+def _rename_phasediff_files(fname):
+    """ Renames Philips "B0" files (1 phasediff / 1 magnitude) because dcm2niix
+    appends (or sometimes prepends) '_ph' to the filename after conversion.
     """
 
+    base_dir = op.dirname(fname)
     jsons = sorted(glob(op.join(base_dir, '*_ph*.json')))
-    if len(jsons) > 1:
-        raise ValueError("Found more than one B0-json! What went wrong?")
-    elif len(jsons) == 0:
-        return
-    else:
-        ph_json = jsons[0]
-
-    ph_json_new = ph_json.replace('_ph.json', '.json').replace('_phsub', 'sub')
-    ph_json = os.rename(ph_json, ph_json_new)
+    [os.rename(src=f, dst=f.replace('_phsub', '').replace('_ph.json', '.json'))
+     for f in jsons]
 
     b0_files = sorted(glob(op.join(base_dir, '*phasediff*.nii.gz')))
+    new_files = []
     if len(b0_files) == 2:
         # Assume Philips magnitude img
         for i, f in enumerate(b0_files):
             fnew = f.replace('_phsub', 'sub')
-            base = '_'.join([s for s in op.basename(fnew).split('.')[0].split('_')
-                             if s[:3] in ['sub', 'ses', 'run', 'acq']])
+            bases = [s for s in op.basename(fnew).split('.')[0].split('_')]
+            base = '_'.join([s for s in bases
+                            if s[:3] in ['sub', 'ses', 'run', 'acq']])
             new_name = op.join(op.dirname(f), base.replace('_ph', ''))
             if i == 0:
-                os.rename(f, new_name + '_magnitude1.nii.gz')
+                fnew = new_name + '_magnitude1.nii.gz'
+                os.rename(f, fnew)
+                new_files.append(fnew)
             else:
-                os.rename(f, new_name + '_phasediff.nii.gz')
+                fnew = new_name + '_phasediff.nii.gz'
+                os.rename(f, fnew)
+                new_files.append(fnew)
     else:
         print("BidsConverter can only handle 1 phasediff/1 magn B0-scans!")
         # Do nothing if there seem to be no b0-files.
         pass
+
+    return new_files
+
+
+def listify(obj):
+    return [obj] if not isinstance(obj, list) else obj

@@ -2,7 +2,10 @@ import platform
 import subprocess
 import os
 import json
+import gzip
+import shutil
 import os.path as op
+from glob import glob
 
 
 def check_executable(executable):
@@ -28,7 +31,7 @@ def check_executable(executable):
         return False
 
 
-def append_to_json(json_path, to_append):
+def _append_to_json(json_path, to_append):
 
     if op.isfile(json_path):
 
@@ -42,3 +45,39 @@ def append_to_json(json_path, to_append):
 
     with open(json_path, 'w') as new_metadata_file:
         json.dump(metadata, new_metadata_file, indent=4)
+
+
+def _compress(f, pigz):
+
+    if pigz:
+        cmd = ['pigz', f]
+        with open(os.devnull, 'w') as devnull:
+            subprocess.call(cmd, stdout=devnull)
+    else:
+        with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        os.remove(f)
+
+
+def _make_dir(path):
+    ''' Creates dir-if-not-exists-already. '''
+
+    if not op.isdir(path):
+        os.makedirs(path)
+
+    return path
+
+
+def _glob(path, wildcards):
+    ''' Finds files with different wildcards. '''
+
+    files = []
+    for w in wildcards:
+        files.extend(glob(op.join(path, '*%s' % w)))
+
+    return sorted(files)
+
+
+def _run_cmd(cmd):
+    with open(os.devnull, 'w') as devnull:
+        subprocess.call(cmd, stdout=devnull)

@@ -1,23 +1,18 @@
 from __future__ import absolute_import, division, print_function
 import os
 import os.path as op
-import numpy as np
 import argparse
-import json
 import shutil
 import fnmatch
-import gzip
-import nibabel as nib
 import warnings
-import subprocess
-from collections import OrderedDict
+import yaml
 from copy import copy, deepcopy
 from glob import glob
 from joblib import Parallel, delayed
-from .mri2nifti import parrec2nii
+from .mri2nifti import convert_mri
 from .behav2tsv import Pres2tsv
 from .phys2tsv import convert_phy
-from .utils import check_executable, append_to_json
+from .utils import check_executable, _glob, _make_dir, _append_to_json
 from .version import __version__
 
 __all__ = ['main', 'convert2bids']
@@ -75,119 +70,124 @@ def convert2bids(cfg, directory, validate):
            imaging data structure, a format for organizing and describing
            outputs of neuroimaging experiments. Scientific Data, 3, 160044.
     """
-    pass
-    """
+
     if not check_executable('dcm2niix'):
-        msg = ("The program 'dcm2niix' was not found on this computer; "
-               "install dcm2niix from neurodebian (Linux users) or download "
-               "dcm2niix from Github (link) "
-               "and compile locally (Mac/Windows). BidsConverter needs "
-               "dcm2niix to convert MRI-files to nifti!. Alternatively, use "
-               "the BidsConverter Docker image!")
+        msg = """The program 'dcm2niix' was not found on this computer;
+        install dcm2niix from neurodebian (Linux users) or download dcm2niix
+        from Github (link) and compile locally (Mac/Windows). BidsConverter
+        needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
+        the BidsConverter Docker image!"""
         print(msg)
 
     if not check_executable('bids-validator') and validate:
-        msg = ("The program 'bids-validator' was not found on your computer; "
-               "setting the validate option to False")
+        msg = """The program 'bids-validator' was not found on your computer;
+        setting the validate option to False"""
         print(msg)
 
-     if not check_executable('bids-validator') and validate:
-         msg = ("The program 'bids-validator' was not found on your computer; "
-                "setting the validate option to False")
-         print(msg)
-         validate = False
+    if not check_executable('bids-validator') and validate:
+        msg = """The program 'bids-validator' was not found on your computer;
+        setting the validate option to False"""
+        print(msg)
+        validate = False
 
-    cfg = _parse_cfg(cfg)
+    cfg = _parse_cfg(cfg, directory)
 
     # Extract some values from cfg for readability
-    mappings = cfg['mappings']
     options = cfg['options']
-    debug = bool(options['debug'])
     out_dir = options['out_dir']
     subject_stem = options['subject_stem']
-    overwrite = options['overwrite']
 
     # Find subject directories
-    sub_dirs = sorted(glob(op.join(project_dir, '%s*' % subject_stem)))
+    sub_dirs = sorted(glob(op.join(directory, '%s*' % subject_stem)))
     if not sub_dirs:
         msg = ("Could not find subject dirs in directory %s with subject stem "
-               "'%s'." % (project_dir, subject_stem))
+               "'%s'." % (directory, subject_stem))
         raise ValueError(msg)
 
-    [_process_sub_dir(sub_dir) for sub_dir in sub_dirs]
+    [_process_directory(sub_dir, out_dir, cfg) for sub_dir in sub_dirs]
 
 
-def _process_sub_dir(sub_dir):
-    sub_name = op.basename(sub_dir)
-    print("Processing %s" % sub_name)
+def _process_directory(cdir, out_dir, cfg, is_sess=False):
+    """ Main workhorse of BidsConverter """
 
-    if 'sub-' not in sub_name:  # Fix subject name if necessary
-        sub_name = _extract_sub_nr(sub_name)
+    options = cfg['options']
+    mappings = cfg['mappings']
+    n_cores = options['n_cores']
+
+    if is_sess:
+        sub_name = _extract_sub_nr(options['subject_stem'],
+                                   op.basename(op.dirname(cdir)))
+        sess_name = op.basename(cdir)
+        this_out_dir = op.join(out_dir, sub_name, sess_name)
+        print("Processing session '%s' from sub '%s'" % (sess_name, sub_name))
+    else:
+        sub_name = _extract_sub_nr(options['subject_stem'], op.basename(cdir))
+        this_out_dir = op.join(out_dir, sub_name)
+        print("Processing sub '%s'" % sub_name)
 
     # Important: to find session-dirs, they should be named
-    # ses-*something
-    sess_dirs = sorted(glob(op.join(sub_dir, 'ses-*')))
+    # ses-*something*
+    sess_dirs = sorted(glob(op.join(cdir, 'ses-*')))
 
     if sess_dirs:
-        [_process_sub_dir(sess_dir) for sess_dir in sess_dirs]
-
-
-    if 'ses-' in op.basename(cdir):
-        this_out_dir = op.join(out_dir, sub_name, op.basename(cdir))
-    else:
-        this_out_dir = op.join(out_dir, sub_name)
+        # Recursive call to _process_directory
+        [_process_directory(sess_dir, out_dir, cfg, is_sess=True)
+         for sess_dir in sess_dirs]
 
     already_exists = op.isdir(this_out_dir)
 
-    if already_exists and not overwrite:
+    if already_exists and not options['overwrite']:
         print('%s already converted - skipping ...' % this_out_dir)
-        continue
+        return
+    elif already_exists and options['overwrite']:
+        shutil.rmtree(this_out_dir)
 
-    mri_type = options['mri_type']
-    if mri_type in ['dicom', 'Dicom', 'DICOM', 'dcm']:
-        # If dicom-files, then FIRST convert it
-        # This should reuse the cmd from mri2nifti
-        cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
-               '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
+    data_dirs = [_move_and_rename(cdir, dtype, sub_name, this_out_dir, cfg)
+                 for dtype in cfg['data_types']]
 
-        with open(os.devnull, 'w') as devnull:
-            subprocess.call(cmd, stdout=devnull)
+    # 1. Transform MRI
+    mri_exts = ['.PAR', '.par', '.nii', '.nifti', '.Nifti', '.dcm', '.DICOM',
+                '.DCM', '.dicom']
+    mri_files = sorted(_glob(op.join(this_out_dir, '*'), mri_exts))
 
-    # First move stuff to bids_converted dir ...
-    data_dirs = [_move_and_rename(cdir, dtype, sub_name)
-                 for dtype in data_types]
-    # ... and then transform/convert everything
-    data_dirs = [_transform(data_dir) for data_dir in data_dirs]
+    Parallel(n_jobs=n_cores)(delayed(convert_mri)(f, options['debug'], cfg)
+                             for f in mri_files)
+
+    # 2. Transform PHYS (if any)
+    if mappings['physio'] is not None:
+        idf = mappings['physio']
+        phys = sorted(glob(op.join(this_out_dir, '*', '*%s*' % idf)))
+        Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
     # ... and extract some extra meta-data
-    [_extract_metadata(data_dir) for data_dir in data_dirs]
+    [_extract_metadata(data_dir, cfg) for data_dir in data_dirs]
 
     # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
-    epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
-    fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
-    [shutil.move(f, op.join(fmap_dir, op.basename(f)))
-     for f in epis]
+    # epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
+    # fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
+    # [shutil.move(f, op.join(fmap_dir, op.basename(f)))
+    # for f in epis]
 
 
 def _parse_cfg(cfg_file, raw_data_dir):
-    ''' Parses config file and sets defaults. '''
+    """ Parses config file and sets defaults. """
 
     if not op.isfile(cfg_file):
         msg = "Couldn't find config-file: %s" % cfg_file
         raise IOError(msg)
 
     with open(cfg_file) as config:
-        cfg = json.load(config, object_pairs_hook=OrderedDict)
+        cfg = yaml.load(config)
 
     options = cfg['options'].keys()
-    if 'mri_type' not in options:
-        cfg['options']['mri_type'] = 'parrec'
 
     if 'log_type' not in options:
         cfg['options']['log_type'] = None
 
     if 'n_cores' not in options:
         cfg['options']['n_cores'] = -1
+    else:
+        cfg['options']['n_cores'] = int(cfg['options']['n_cores'])
 
     if 'subject_stem' not in options:
         cfg['options']['subject_stem'] = 'sub'
@@ -200,9 +200,13 @@ def _parse_cfg(cfg_file, raw_data_dir):
 
     if 'overwrite' not in options:
         cfg['options']['overwrite'] = False
+    else:
+        cfg['options']['overwrite'] = bool(cfg['options']['overwrite'])
 
     if 'spinoza_data' not in options:
         cfg['options']['spinoza_data'] = False
+    else:
+        cfg['options']['spinoza_data'] = bool(cfg['options']['spinoza_data'])
 
     # Now, extract and set metadata
     metadata = dict()
@@ -215,12 +219,14 @@ def _parse_cfg(cfg_file, raw_data_dir):
 
     if cfg['options']['spinoza_data']:
         # If data is from Spinoza centre, set some sensible defaults!
-        spi_cfg = op.join(op.dirname(__file__), 'data', 'spinoza_metadata.json')
+        spi_cfg = op.join(op.dirname(__file__), 'data',
+                          'spinoza_metadata.json')
         with open(spi_cfg) as f:
-            self.spi_md = json.load(f)
+            cfg['spinoza_metadata'] = yaml.load(f)
 
     DTYPES = ['func', 'anat', 'fmap', 'dwi']
     data_types = [c for c in cfg.keys() if c in DTYPES]
+    cfg['data_types'] = data_types
 
     for dtype in data_types:
 
@@ -257,40 +263,40 @@ def _parse_cfg(cfg_file, raw_data_dir):
                           (task_name, task_name))
                     cfg[dtype][element]['task'] = task_name
 
-    for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'B0',
-                  'eyedata', 'epi']:
+    for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'phasediff',
+                  'epi']:
 
         if ftype not in cfg['mappings'].keys():
             # Set non-existing mappings to None
             cfg['mappings'][ftype] = None
 
+    cfg['metadata'] = metadata
     return cfg
 
 
-def _move_and_rename(self, cdir, dtype, sub_name):
+def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
     ''' Does the actual work of processing/renaming/conversion. '''
-
-    if 'sub-' not in sub_name:
-        sub_name = self._extract_sub_nr(sub_name)
 
     # The number of coherent elements for a given data-type (e.g. runs in
     # bold-fmri, or different T1 acquisitions for anat) ...
-    n_elem = len(self.cfg[dtype])
+    mappings, options = cfg['mappings'], cfg['options']
+    n_elem = len(cfg[dtype])
 
     if n_elem == 0:
-        # If there are for some reason no elements, skip method
-        return None
+        # If there are for some reason no elements, raise error
+        raise ValueError("The category '%s' does not have any entries in your "
+                         "config-file!" % dtype)
 
     unallocated = []
     # Loop over contents of dtype (e.g. func)
-    for elem in self.cfg[dtype].keys():
+    for elem in cfg[dtype].keys():
 
         if elem == 'metadata':
             # Skip metadata
             continue
 
         # Extract "key-value" pairs (info about element)
-        kv_pairs = deepcopy(self.cfg[dtype][elem])
+        kv_pairs = deepcopy(cfg[dtype][elem])
 
         # Extract identifier (idf) from element
         idf = copy(kv_pairs['id'])
@@ -316,24 +322,13 @@ def _move_and_rename(self, cdir, dtype, sub_name):
         files = [f for f in glob(op.join(cdir, '*%s*' % idf))
                  if op.isfile(f)]
 
-        if not files:  # check one level lower
-            files = [f for f in glob(op.join(cdir, '*', '*%s*' % idf))
-                     if op.isfile(f)]
-
-        if sess_id is not None:
-            data_dir = self._make_dir(op.join(self._out_dir, sub_name,
-                                              'ses-' + sess_id, dtype))
-        else:
-            data_dir = self._make_dir(op.join(self._out_dir, sub_name,
-                                              dtype))
         if files:
-            # If we actually found files, make the directory
-            data_dir = self._make_dir(data_dir)
+            data_dir = _make_dir(op.join(out_dir, dtype))
 
         for f in files:
             # Rename files according to mapping
             types = []
-            for ftype, match in self._mappings.items():
+            for ftype, match in mappings.items():
                 if match is None:
                     # if there's no mapping given, skip it
                     continue
@@ -361,20 +356,18 @@ def _move_and_rename(self, cdir, dtype, sub_name):
 
             # For some weird reason, people seem to use periods in
             # filenames, so remove all unnecessary 'extensions'
-            allowed_exts = ['par', 'rec', 'nii', 'gz', 'dcm', 'pickle',
-                            'json', 'edf', 'log', 'bz2', 'tar', 'phy',
-                            'cPickle', 'pkl', 'jl', 'tsv', 'csv']
+            allowed_exts = ['par', '.Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
+                            'Gz', 'dcm', 'Dcm', 'dicom', 'Dicom', 'dicomdir',
+                            'Dicomdir', 'pickle', 'json', 'edf', 'log', 'bz2',
+                            'tar', 'phy', 'cPickle', 'pkl', 'jl', 'tsv', 'csv',
+                            'txt']
             allowed_exts.extend([s.upper() for s in allowed_exts])
 
             clean_exts = '.'.join([e for e in exts if e in allowed_exts])
             full_name = op.join(data_dir, common_name + '_%s.%s' %
                                 (filetype, clean_exts))
 
-            # _b0 or _B0 may be used as an identifier (which makes sense),
-            # but needs to be removed for BIDS-compatibility
-            full_name = full_name.replace('_b0', '').replace('_B0', '')
-
-            if self._debug:
+            if options['debug']:
                 print("Renaming '%s' to '%s'" % (f, full_name))
 
             if not op.isfile(full_name):
@@ -387,100 +380,77 @@ def _move_and_rename(self, cdir, dtype, sub_name):
 
     return data_dir
 
-def _transform(self, data_dir):
-    ''' Transforms files to appropriate format (nii.gz or tsv). '''
 
-    self._mri2nifti(data_dir, n_cores=self.cfg['options']['n_cores'])
+def _extract_metadata(data_dir, cfg):
 
-    if self._mappings['events'] is not None:
-        self._log2tsv(data_dir, logtype=self.cfg['options']['log_type'])
+    # Get metadata dict
+    metadata, mappings = cfg['metadata'], cfg['mappings']
 
-    if self._mappings['physio'] is not None:
-        self._phys2tsv(data_dir, n_cores=self.cfg['options']['n_cores'])
-
-    return data_dir
-
-def _extract_metadata(self, data_dir):
+    if 'spinoza_metadata' in metadata.keys():
+        spi_md = metadata['spinoza_metadata']
 
     dtype = op.basename(data_dir)
-    dtype_metadata = self._metadata['toplevel']
-    if self._metadata.get(dtype, None) is not None:
-        dtype_metadata.update(self.metadata[dtype])
 
-    for file_type in self._mappings.keys():
-        jsons = glob(op.join(data_dir, '*%s*.json' % file_type))
+    # Start with common metadata ("toplevel")
+    dtype_metadata = copy(metadata['toplevel'])
+
+    # If there is dtype-specific metadata, append it
+    if metadata.get(dtype, None) is not None:
+        dtype_metadata.update(metadata[dtype])
+
+    # Now loop over ftypes ('filetypes', e.g. bold, physio, etc.)
+    for ftype in mappings.keys():
+
+        # Find relevant jsons
+        jsons = glob(op.join(data_dir, '*_%s.json' % ftype))
+
+        # Copy common dtype metadata
         ftype_metadata = copy(dtype_metadata)
 
-        if dtype in self._metadata.keys():
-            if self._metadata[dtype].get(file_type, None) is not None:
-                ftype_metadata.update(self._metadata[dtype][file_type])
+        # Check if specific ftype metadata exists and, if so, append it
+        if dtype in metadata.keys():
+            if metadata[dtype].get(ftype, None) is not None:
+                ftype_metadata.update(metadata[dtype][ftype])
 
+        # Find functional files (bold), needed for IntendedFor field of fmaps
         func_files = glob(op.join(op.dirname(data_dir),
                                   'func', '*_bold.nii.gz'))
-        if dtype == 'fmap' and file_type == 'phasediff':
+
+        if dtype == 'func' and ftype == 'bold':
+            # Perhaps SliceTiming?
+            pass
+
+        if dtype == 'func' and ftype == 'physio':
+            # "SamplingFrequency": 100.0,
+            # "StartTime": -22.345,
+            # "Columns": ["cardiac", "respiratory", "trigger"]
+            pass
+
+        if dtype == 'fmap' and ftype == 'phasediff':
             ftype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
                                              for f in func_files]
+
+            if 'spinoza_metadata' in metadata.keys():
+                ftype_metadata.update(spi_md['fmap']['phasediff'])
+
         for this_json in jsons:
-            # This entire loop is ugly; need to refactor
+
+            # this_metadata refers to metadata meant for current json
             this_metadata = copy(ftype_metadata)
 
-            if dtype == 'func' and file_type == 'epi':
+            if dtype == 'func' and ftype == 'epi':
                 int_for = op.basename(this_json.replace('_epi.json',
                                                         '_bold.nii.gz'))
                 this_metadata['IntendedFor'] = 'func/%s' % int_for
 
-                if hasattr(self, 'spi_md'):
-                    this_metadata.update(self.spi_md['func']['epi'])
+            if dtype == 'func' and ftype == 'bold':
+                # Add spinoza-specific metadata if available
+                if 'spinoza_metadata' in metadata.keys():
+                    spi_md = metadata['spinoza_metadata']
+                    acq_type = this_json.split('acq-')[-1].split('_')[0]
+                    this_metadata.update(spi_md['func']['bold'][acq_type])
 
-            elif dtype == 'func' and file_type == 'bold':
-
-                if hasattr(self, 'spi_md'):
-                    mbnames = ['multiband', 'MB3', 'Multiband']
-                    if any([s in this_json for s in mbnames]):
-                        this_metadata.update(self.spi_md['func']['bold']['MB'])
-                    else:  # assume sequential
-                        this_metadata.update(self.spi_md['func']['bold']['sequential'])
-
-            elif dtype == 'fmap' and file_type == 'phasediff':
-
-                if hasattr(self, 'spi_md'):
-                    this_metadata.update(self.spi_md['fmap']['phasediff'])
-
-            append_to_json(this_json, this_metadata)
-
-
-def _mri2nifti(self, directory, n_cores=-1):
-    ''' Converts raw mri to nifti.gz. '''
-
-    # If in "debug-mode", set compress to False to save time
-    compress = False if self._debug else True
-
-    if self.cfg['options']['mri_type'] == 'parrec':
-        # Do par/rec conversion!
-        PAR_files = self._glob(directory, ['.PAR', '.par'])
-        if PAR_files:
-            Parallel(n_jobs=n_cores)(delayed(parrec2nii)(pfile,
-                                                         self.cfg,
-                                                         compress)
-                                     for pfile in PAR_files)
-
-    elif self.cfg['options']['mri_type'] == 'nifti':
-        niftis = self._glob(directory, ['.nii', '.nifti', '.ni'])
-
-        if niftis and compress:
-            _ = [self._compress(f) for f in niftis]
-
-    elif self.cfg['options']['mri_type'] == 'nifti-gz':
-        # Don't have to do anything if it's already nifti.gz!
-        pass
-
-    # Check for left-over unconverted niftis
-    if compress:
-
-        niftis = self._glob(directory, ['.nii', '.nifti', '.ni'])
-
-        if niftis:
-            _ = [self._compress(f) for f in niftis]
+            _append_to_json(this_json, this_metadata)
 
 
 def _log2tsv(self, directory, logtype='Presentation'):
@@ -504,43 +474,7 @@ def _log2tsv(self, directory, logtype='Presentation'):
                       "'Presentation' is not (yet) supported.")
 
 
-def _phys2tsv(self, directory, n_cores=-1):
-
-    idf = self.cfg['mappings']['physio']
-    phys = glob(op.join(directory, '*%s*' % idf))
-
-    if phys:
-        Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
-
-
-def _compress(f):
-
-    with open(f, 'rb') as f_in, gzip.open(f + '.gz', 'wb') as f_out:
-        shutil.copyfileobj(f_in, f_out)
-    os.remove(f)
-
-
-def _make_dir(path):
-    ''' Creates dir-if-not-exists-already. '''
-
-    if not op.isdir(path):
-        os.makedirs(path)
-
-    return path
-
-
-def _glob(path, wildcards):
-    ''' Finds files with different wildcards. '''
-
-    files = []
-    for w in wildcards:
-        files.extend(glob(op.join(path, '*%s' % w)))
-
-    return sorted(files)
-
-
 def _extract_sub_nr(sub_stem, sub_name):
     nr = sub_name.split(sub_stem)[-1]
     nr = nr.replace('-', '').replace('_', '')
     return 'sub-' + nr
-"""

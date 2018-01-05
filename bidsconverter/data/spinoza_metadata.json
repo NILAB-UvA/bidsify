@@ -2,7 +2,7 @@
     "func": {
 
         "bold": {
-            "sequential": {
+            "seq": {
                 "PhaseEncodingDirection": "j",
                 "EffectiveEchoSpacing": 0.00034545,
                 "SliceEncodingDirection": "k"
@@ -10,7 +10,8 @@
 
             "MB": {
                 "PhaseEncodingDirection": "j",
-                "EffectiveEchoSpacing": 0.00034545
+                "EffectiveEchoSpacing": 0.00034545,
+                "SliceEncodingDirection": "k"
             }
         },
 
