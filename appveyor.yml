@@ -14,8 +14,6 @@ environment:
       PYTHON_ARCH: "32"
       MINICONDA: C:\Miniconda35
 
-    - nodejs_version: '8'
-
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %MINICONDA%"
 

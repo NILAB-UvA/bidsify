@@ -4,8 +4,17 @@ PACKAGES = find_packages()
 
 # Get version and release info, which is all stored in shablona/version.py
 ver_file = os.path.join('bidsconverter', 'version.py')
+
 with open(ver_file) as f:
     exec(f.read())
+
+# Long description will go up on the pypi page
+pardir = op.dirname(__file__)
+with open(op.join(pardir, 'README.rst')) as f:
+    LONG_DESCRIPTION = f.read()
+
+with open(op.join(pardir, 'requirements.txt')) as f:
+    REQUIRES = f.readlines()
 
 opts = dict(name=NAME,
             maintainer=MAINTAINER,

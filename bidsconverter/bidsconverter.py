@@ -75,7 +75,6 @@ def convert2bids(cfg, directory, validate):
            imaging data structure, a format for organizing and describing
            outputs of neuroimaging experiments. Scientific Data, 3, 160044.
     """
-
     pass
     """
     if not check_executable('dcm2niix'):
@@ -96,6 +95,7 @@ def convert2bids(cfg, directory, validate):
          msg = ("The program 'bids-validator' was not found on your computer; "
                 "setting the validate option to False")
          print(msg)
+         validate = False
 
     cfg = _parse_cfg(cfg)
 
@@ -128,50 +128,45 @@ def _process_sub_dir(sub_dir):
     # ses-*something
     sess_dirs = sorted(glob(op.join(sub_dir, 'ses-*')))
 
-    if not sess_dirs:
-        # If there are no session dirs, use sub_dir
-        if debug:
-            print("Didn't find any session-dirs; going for subject-dirs!")
+    if sess_dirs:
+        [_process_sub_dir(sess_dir) for sess_dir in sess_dirs]
+
+
+    if 'ses-' in op.basename(cdir):
+        this_out_dir = op.join(out_dir, sub_name, op.basename(cdir))
     else:
-        cdirs = sess_dirs
+        this_out_dir = op.join(out_dir, sub_name)
 
-    for cdir in cdirs:
+    already_exists = op.isdir(this_out_dir)
 
-        if 'ses-' in op.basename(cdir):
-            this_out_dir = op.join(out_dir, sub_name, op.basename(cdir))
-        else:
-            this_out_dir = op.join(out_dir, sub_name)
+    if already_exists and not overwrite:
+        print('%s already converted - skipping ...' % this_out_dir)
+        continue
 
-        already_exists = op.isdir(this_out_dir)
+    mri_type = options['mri_type']
+    if mri_type in ['dicom', 'Dicom', 'DICOM', 'dcm']:
+        # If dicom-files, then FIRST convert it
+        # This should reuse the cmd from mri2nifti
+        cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
+               '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
 
-        if already_exists and not overwrite:
-            print('%s already converted - skipping ...' % this_out_dir)
-            continue
+        with open(os.devnull, 'w') as devnull:
+            subprocess.call(cmd, stdout=devnull)
 
-        mri_type = options['mri_type']
-        if mri_type in ['dicom', 'Dicom', 'DICOM', 'dcm']:
-            # If dicom-files, then FIRST convert it
-            # This should reuse the cmd from mri2nifti
-            cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
-                   '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
+    # First move stuff to bids_converted dir ...
+    data_dirs = [_move_and_rename(cdir, dtype, sub_name)
+                 for dtype in data_types]
+    # ... and then transform/convert everything
+    data_dirs = [_transform(data_dir) for data_dir in data_dirs]
 
-            with open(os.devnull, 'w') as devnull:
-                subprocess.call(cmd, stdout=devnull)
+    # ... and extract some extra meta-data
+    [_extract_metadata(data_dir) for data_dir in data_dirs]
 
-        # First move stuff to bids_converted dir ...
-        data_dirs = [_move_and_rename(cdir, dtype, sub_name)
-                     for dtype in data_types]
-        # ... and then transform/convert everything
-        data_dirs = [_transform(data_dir) for data_dir in data_dirs]
-
-        # ... and extract some extra meta-data
-        [_extract_metadata(data_dir) for data_dir in data_dirs]
-
-        # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
-        epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
-        fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
-        [shutil.move(f, op.join(fmap_dir, op.basename(f)))
-         for f in epis]
+    # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
+    epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
+    fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
+    [shutil.move(f, op.join(fmap_dir, op.basename(f)))
+     for f in epis]
 
 
 def _parse_cfg(cfg_file, raw_data_dir):
