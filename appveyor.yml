@@ -14,6 +14,8 @@ environment:
       PYTHON_ARCH: "32"
       MINICONDA: C:\Miniconda35
 
+    - nodejs_version: '8'
+
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %MINICONDA%"
 
@@ -31,6 +33,11 @@ install:
   #- set PATH=C:\MinGW\bin;%PATH%
   #- make
   - set PATH=c:\projects\dcm2niix\build\bin;%PATH%
+  - ps: Install-Product node $env:nodejs_version
+  - set CI=true
+  - npm install --global npm@latest
+  - set PATH=%APPDATA%\npm;%PATH%
+  - npm install -g bids-validator
   - cd c:\projects\BidsConverter
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
   - conda config --set always_yes yes --set changeps1 no
