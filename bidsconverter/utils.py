@@ -78,6 +78,10 @@ def _glob(path, wildcards):
     return sorted(files)
 
 
-def _run_cmd(cmd):
-    with open(os.devnull, 'w') as devnull:
-        subprocess.call(cmd, stdout=devnull)
+def _run_cmd(cmd, verbose=False):
+
+    if verbose:
+        subprocess.call(cmd)
+    else:
+        with open(os.devnull, 'w') as devnull:
+            subprocess.call(cmd, stdout=devnull)

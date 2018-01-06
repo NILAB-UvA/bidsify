@@ -13,10 +13,25 @@ from joblib import Parallel, delayed
 from .mri2nifti import convert_mri
 from .behav2tsv import Pres2tsv
 from .phys2tsv import convert_phy
-from .utils import check_executable, _glob, _make_dir, _append_to_json
+from .docker import run_from_docker
+from .utils import (check_executable, _glob, _make_dir, _append_to_json,
+                    _run_cmd)
 from .version import __version__
 
 __all__ = ['main', 'convert2bids']
+
+
+orders = dict(
+
+    T1w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T1w=6),
+    bold=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, bold=7),
+    events=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, events=7),
+    physio=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7, physio=8),
+    stim=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7, stim=8),
+    dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
+    phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
+    epi=dict(sub=0, ses=1, acq=2, run=3, dir=4, epi=5)
+)
 
 
 def main():
@@ -32,6 +47,11 @@ def main():
                         required=False,
                         default=os.getcwd())
 
+    parser.add_argument('-o', '--out',
+                        help='Directory for output.',
+                        required=False,
+                        default=None)
+
     parser.add_argument('-c', '--config_file',
                         help='Config-file with img. acq. parameters',
                         required=False,
@@ -42,9 +62,21 @@ def main():
                         required=False, action='store_true',
                         default=False)
 
+    parser.add_argument('-D', '--docker',
+                        help='Whether to run in a Docker container',
+                        required=False, action='store_true',
+                        default=False)
+
     args = parser.parse_args()
-    convert2bids(cfg=args.config_file, directory=args.directory,
-                 validate=args.validate)
+    if args.out is None:
+        args.out = op.dirname(args.directory)
+
+    if args.docker:
+        run_from_docker(cfg=args.config_file, in_dir=args.directory,
+                        out_dir=args.out, validate=args.validate)
+    else:
+        convert2bids(cfg=args.config_file, directory=args.directory,
+                     validate=args.validate)
 
 
 def convert2bids(cfg, directory, validate):
@@ -134,13 +166,12 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
                                    op.basename(op.dirname(cdir)))
         sess_name = op.basename(cdir)
         this_out_dir = op.join(out_dir, sub_name, sess_name)
-        print("Processing session '%s' from sub '%s'" % (sess_name, sub_name))
+        print("\t... processing session '%s'" % sess_name)
     else:
         sub_name = _extract_sub_nr(options['subject_stem'], op.basename(cdir))
         this_out_dir = op.join(out_dir, sub_name)
         print("Processing sub '%s'" % sub_name)
 
-    print("THIS OUT DIR (cdir=%s): %s" % (cdir, this_out_dir))
     # Important: to find session-dirs, they should be named
     # ses-*something*
     sess_dirs = sorted(glob(op.join(cdir, 'ses-*')))
@@ -149,6 +180,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         # Recursive call to _process_directory
         [_process_directory(sess_dir, out_dir, cfg, is_sess=True)
          for sess_dir in sess_dirs]
+        return None
 
     already_exists = op.isdir(this_out_dir)
 
@@ -156,6 +188,16 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         print('%s already converted - skipping ...' % this_out_dir)
         return
 
+    # If there are DICOMS, we FIRST need to convert them
+    dicom_exts = ['DCM', 'dcm', 'DICOMDIR', 'dicomdir', 'Dicom', 'DICOM']
+    dicom_files = sorted(_glob(op.join(this_out_dir, '*'), dicom_exts))
+
+    if dicom_files:
+        cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
+               '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
+        _run_cmd(cmd)
+
+    # Rename and move stuff
     data_dirs = [_move_and_rename(cdir, dtype, sub_name, this_out_dir, cfg)
                  for dtype in cfg['data_types']]
 
@@ -177,10 +219,12 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     [_extract_metadata(data_dir, cfg) for data_dir in data_dirs]
 
     # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
-    epis = glob(op.join(op.dirname(data_dirs[0]), 'func', '*_epi*'))
-    fmap_dir = op.join(op.dirname(data_dirs[0]), 'fmap')
-    [shutil.move(f, op.join(fmap_dir, op.basename(f)))
-     for f in epis]
+    _fix_topups(this_out_dir)
+
+    # Deface
+    if options['deface']:
+        anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
+        [_deface(f) for f in anat_files]
 
 
 def _parse_cfg(cfg_file, raw_data_dir):
@@ -221,6 +265,21 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg['options']['spinoza_data'] = False
     else:
         cfg['options']['spinoza_data'] = bool(cfg['options']['spinoza_data'])
+
+    if 'deface' not in options:
+        cfg['options']['deface'] = False
+
+    if cfg['options']['deface'] and 'FSLDIR' not in os.environ.keys():
+        print("Cannot deface because FSL is not installed ...")
+        cfg['options']['deface'] = False
+
+    if cfg['options']['deface']:
+        try:
+            import nipype
+        except ImportError:
+            print("To enable defacing, you need to install nipype (pip "
+                  "install nipype) manually! Setting deface to False for now")
+            cfg['options']['deface'] = False
 
     # Now, extract and set metadata
     metadata = dict()
@@ -448,6 +507,11 @@ def _extract_metadata(data_dir, cfg):
             if 'spinoza_metadata' in cfg.keys():
                 ftype_metadata.update(spi_md['dwi']['dwi'])
 
+        if dtype == 'dwi' and ftype == 'epi':
+
+            if 'spinoza_metadata' in cfg.keys():
+                ftype_metadata.update(spi_md['dwi']['epi'])
+
         # Find relevant jsons
         jsons = glob(op.join(data_dir, '*_%s.json' % ftype))
 
@@ -474,6 +538,52 @@ def _extract_metadata(data_dir, cfg):
                     this_metadata.update(spi_md['func']['bold'][acq_type])
 
             _append_to_json(this_json, this_metadata)
+
+
+def _fix_topups(out_dir):
+    """ Because we treat topups as "bold" files, we need to move them to the
+    fmap directory. Also, fix names to comply with BIDS. """
+    fmap_dir = op.join(out_dir, 'fmap')
+
+    func_epis = glob(op.join(out_dir, 'func', '*_epi.*'))  # both nii.gz/json
+    for f_epi in func_epis:
+
+        base = op.basename(f_epi)
+        task = base.split('task-')[-1].split('_')[0]
+        elems = base.split('_')
+        elems = [e for e in base.split('_') if 'task' not in e]
+        if 'run-' in base:
+            new_name = elems[:-2] + ['dir-%s' % task] + elems[-2:]
+        else:
+            new_name = elems[:-1] + ['dir-%s' % task] + elems[-1:]
+
+        new_name = op.join(fmap_dir, '_'.join(new_name))
+        shutil.move(f_epi, new_name)
+
+    dwi_epis = glob(op.join(out_dir, 'dwi', '*_epi.*'))
+    for d_epi in dwi_epis:
+
+        base = op.basename(d_epi)
+        if 'run-' in base:
+            new_name = elems[:-2] + ['dir-dwi'] + elems[-2:]
+        else:
+            new_name = elems[:-1] + ['dir-dwi'] + elems[-1:]
+        new_name = op.join(fmap_dir, '_'.join(new_name))
+        shutil.move(d_epi, new_name)
+
+    # Check for weird 'ADC' files and remove them
+    [os.remove(f) for f in glob(op.join(out_dir, 'dwi', '*ADC.nii.gz'))]
+
+    # Also, while we're at it, remove bval/bvecs of topups
+    epi_bvals_bvecs = glob(op.join(out_dir, 'fmap', '*_epi.bv[e,a][c,l]'))
+    [os.remove(f) for f in epi_bvals_bvecs]
+
+
+def _deface(f):
+    """ Deface anat data. """
+
+    _run_cmd(['pydeface', f])  # Run pydeface
+    os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
 
 
 def _log2tsv(self, directory, logtype='Presentation'):
