@@ -1,7 +1,7 @@
 FROM neurodebian:xenial-non-free
 MAINTAINER <lukassnoek@gmail.com>
 
-# Installing Neurodebian packages (FSL, git)
+# Installing Neurodebian packages (FSL, git, dcm2niix)
 RUN apt-get update  && \
     apt-get install -y --no-install-recommends \
                     curl \
@@ -28,12 +28,16 @@ RUN conda install -y -c numpy \
     chmod +x /usr/local/miniconda/bin/* && \
     conda clean --all -y
 
+RUN conda upgrade -y pandas
+
 RUN pip install nipype nibabel pyyaml
 
 RUN git clone https://github.com/poldracklab/pydeface.git && \
         cd pydeface && \
         python setup.py install && \
         cd ..
+
+RUN echo 'test'
 
 # Clone Github repo here and install BidsConverter
 RUN git clone -b refactor --single-branch https://github.com/lukassnoek/BidsConverter.git && \

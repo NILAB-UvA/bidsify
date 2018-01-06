@@ -26,8 +26,10 @@ orders = dict(
     T1w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T1w=6),
     bold=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, bold=7),
     events=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, events=7),
-    physio=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7, physio=8),
-    stim=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7, stim=8),
+    physio=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7,
+                physio=8),
+    stim=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7,
+              stim=8),
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
     epi=dict(sub=0, ses=1, acq=2, run=3, dir=4, epi=5)
