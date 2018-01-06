@@ -1,16 +1,12 @@
 FROM neurodebian:xenial-non-free
 MAINTAINER <lukassnoek@gmail.com>
 
-# Prepare environment
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-                    curl \
-                    ca-certificates \
-                    build-essential
-
 # Installing Neurodebian packages (FSL, git)
 RUN apt-get update  && \
     apt-get install -y --no-install-recommends \
+                    curl \
+                    ca-certificates \
+                    build-essential \
                     fsl-core \
                     git \
                     dcm2niix
@@ -25,14 +21,14 @@ ENV PATH=/usr/local/miniconda/bin:$PATH \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
-RUN conda install -c numpy \
+RUN conda install -y -c numpy \
                      pandas \
                      joblib && \
     chmod -R a+rX /usr/local/miniconda && \
     chmod +x /usr/local/miniconda/bin/* && \
     conda clean --all -y
 
-RUN pip install nipype nibabel
+RUN pip install nipype nibabel pyyaml
 
 RUN git clone https://github.com/poldracklab/pydeface.git && \
         cd pydeface && \
@@ -40,7 +36,7 @@ RUN git clone https://github.com/poldracklab/pydeface.git && \
         cd ..
 
 # Clone Github repo here and install BidsConverter
-RUN git clone https://github.com/lukassnoek/BidsConverter.git && \
+RUN git clone -b refactor --single-branch https://github.com/lukassnoek/BidsConverter.git && \
     cd BidsConverter && \
     python setup.py install
 
