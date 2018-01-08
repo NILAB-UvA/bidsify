@@ -20,8 +20,8 @@ from .version import __version__
 
 __all__ = ['main', 'convert2bids']
 
-
-orders = dict(
+DTYPES = ['func', 'anat', 'fmap', 'dwi']
+MTYPE_ORDERS = dict(
 
     T1w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T1w=6),
     bold=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, bold=7),
@@ -32,8 +32,18 @@ orders = dict(
               stim=8),
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
-    epi=dict(sub=0, ses=1, acq=2, run=3, dir=4, epi=5)
+    # Note: task is actually not a key for epi, but we treat it as 'bold'
+    epi=dict(sub=0, ses=1, acq=2, run=3, task=4, dir=5, epi=6)
 )
+
+# For some reason, people seem to use periods in filenames, so
+# remove all unnecessary 'extensions'
+ALLOWED_EXTS = ['par', '.Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
+                'Gz', 'dcm', 'Dcm', 'dicom', 'Dicom', 'dicomdir',
+                'Dicomdir', 'pickle', 'json', 'edf', 'log', 'bz2',
+                'tar', 'phy', 'cPickle', 'pkl', 'jl', 'tsv', 'csv',
+                'txt']
+ALLOWED_EXTS.extend([s.upper() for s in ALLOWED_EXTS])
 
 
 def main():
@@ -139,6 +149,7 @@ def convert2bids(cfg, directory, validate):
                "'%s'." % (directory, subject_stem))
         raise ValueError(msg)
 
+    # Process directories of each subject
     [_process_directory(sub_dir, out_dir, cfg) for sub_dir in sub_dirs]
 
     # Write example description_dataset.json to disk
@@ -253,7 +264,9 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg['options']['subject_stem'] = 'sub'
 
     if 'out_dir' not in options:
-        cfg['options']['out_dir'] = op.join(raw_data_dir, 'bids_converted')
+        out_dir = op.join(raw_data_dir, 'bids_converted')
+        print("Setting out-dir to %s" % out_dir)
+        cfg['options']['out_dir'] = out_dir
     else:
         out_dir = cfg['options']['out_dir']
         cfg['options']['out_dir'] = op.join(raw_data_dir, out_dir)
@@ -299,7 +312,6 @@ def _parse_cfg(cfg_file, raw_data_dir):
         with open(spi_cfg) as f:
             cfg['spinoza_metadata'] = yaml.load(f)
 
-    DTYPES = ['func', 'anat', 'fmap', 'dwi']
     data_types = [c for c in cfg.keys() if c in DTYPES]
     cfg['data_types'] = data_types
 
@@ -332,18 +344,16 @@ def _parse_cfg(cfg_file, raw_data_dir):
                 has_task = 'task' in cfg[dtype][element]
 
                 if not has_task:
-                    # Use (only) key as name as a (hacky) fix ...
-                    task_name = cfg[dtype][element].keys()[0]
-                    print("Setting task-name of element '%s' to '%s'." %
-                          (task_name, task_name))
-                    cfg[dtype][element]['task'] = task_name
+                    msg = ("Element '%s' (data-type: %s) does not have a "
+                           "'task' element associated with it, which is "
+                           "necessary for BIDS-compliance!")
+                    raise ValueError(msg)
 
-    for ftype in ['bold', 'T1w', 'dwi', 'physio', 'events', 'phasediff',
-                  'epi']:
+    for mtype in MTYPE_ORDERS.keys():
 
-        if ftype not in cfg['mappings'].keys():
+        if mtype not in cfg['mappings'].keys():
             # Set non-existing mappings to None
-            cfg['mappings'][ftype] = None
+            cfg['mappings'][mtype] = None
 
     cfg['metadata'] = metadata
     return cfg
@@ -362,7 +372,8 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
         raise ValueError("The category '%s' does not have any entries in your "
                          "config-file!" % dtype)
 
-    unallocated = []
+    unallocated = []  # Keep track of 'unallocated' files
+
     # Loop over contents of dtype (e.g. func)
     for elem in cfg[dtype].keys():
 
@@ -373,73 +384,86 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
         # Extract "key-value" pairs (info about element)
         kv_pairs = deepcopy(cfg[dtype][elem])
 
-        # Extract identifier (idf) from element
+        # Extract identifier (idf) from element ...
         idf = copy(kv_pairs['id'])
-        # But delete the field, because we'll loop over the rest of the
-        # fields ...
+        # ... but delete the field, because we'll loop over the rest of the
+        # fields!
         del kv_pairs['id']
 
-        # common_name is simply sub-[0-9][0-9][0-9]
-        common_name = copy(sub_name)
+        common_kv_pairs = {sub_name.split('-')[0]: sub_name.split('-')[1]}
 
         # Add session-id pair to name if there are sessions!
         if 'ses-' in op.basename(cdir):
             sess_id = op.basename(cdir).split('ses-')[-1]
-            common_name += '_%s-%s' % ('ses', sess_id)
-        else:
-            sess_id = None
-
-        for key, value in kv_pairs.items():
-            # Append key-value pair if it's not an empty string
-            common_name += '_%s-%s' % (key, value)
+            common_kv_pairs.update(dict(ses=sess_id))
 
         # Find files corresponding to func/anat/dwi/fieldmap
         files = [f for f in glob(op.join(cdir, '*%s*' % idf))
                  if op.isfile(f)]
 
+        if not files:
+            print("Could not find files for element %s (dtype %s) with "
+                  "identifier '%s'" % (elem, dtype, idf))
+
         data_dir = _make_dir(op.join(out_dir, dtype))
 
         for f in files:
             # Rename files according to mapping
+            these_kv_pairs = deepcopy(common_kv_pairs)
             types = []
-            for ftype, match in mappings.items():
+            for mtype, match in mappings.items():
                 if match is None:
                     # if there's no mapping given, skip it
                     continue
 
+                # Try to find (unique) modality type (e.g. bold, dwi)
                 match = '*%s*' % match
                 if fnmatch.fnmatch(op.basename(f), match):
-                    types.append(ftype)
+                    types.append(mtype)
 
             if len(types) > 1:
-                msg = ("Couldn't determine file-type for file '%s' (i.e. "
-                       "there is no UNIQUE mapping; "
+                msg = ("Couldn't determine modality-type for file '%s' (i.e. "
+                       "there is no UNIQUE mapping); "
                        "is one of the following:\n %r" % (f, types))
                 raise ValueError(msg)
-
-            elif len(types) == 1:
-                filetype = types[0]
-            else:
+            elif len(types) == 0:
                 unallocated.append(f)
                 # No file found; ends up in unallocated (printed later).
                 continue
+            else:
+                mtype = types[0]
 
-            # Create full name as common_name + unique filetype +
-            # original extension
-            exts = f.split('.')[1:]
+            # Check if keys in config are allowed
+            allowed_keys = list(MTYPE_ORDERS[mtype].keys())
+            for key, value in kv_pairs.items():
+                # Append key-value pair if in allowed keys
+                if key in allowed_keys:
+                    these_kv_pairs.update({key: value})
+                else:
+                    print("Key '%s' in element '%s' (dtype %s) is not an "
+                          "allowed key! Choose from %r" %
+                          (key, elem, dtype, allowed_keys))
 
-            # For some weird reason, people seem to use periods in
-            # filenames, so remove all unnecessary 'extensions'
-            allowed_exts = ['par', '.Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
-                            'Gz', 'dcm', 'Dcm', 'dicom', 'Dicom', 'dicomdir',
-                            'Dicomdir', 'pickle', 'json', 'edf', 'log', 'bz2',
-                            'tar', 'phy', 'cPickle', 'pkl', 'jl', 'tsv', 'csv',
-                            'txt']
-            allowed_exts.extend([s.upper() for s in allowed_exts])
+            # Check if there are any keys in filename already
+            for key_value in op.basename(f).split('_'):
+                if len(key_value.split('-')) == 2:
+                    key, value = key_value.split('-')
+                    # If allowed (part of BIDS-spec) and not already added ...
+                    if key in allowed_keys and key not in these_kv_pairs.keys():
+                        these_kv_pairs.update({key: value})
 
-            clean_exts = '.'.join([e for e in exts if e in allowed_exts])
-            full_name = op.join(data_dir, common_name + '_%s.%s' %
-                                (filetype, clean_exts))
+            # Sort kv-pairs using MTYPE_ORDERS
+            this_order = MTYPE_ORDERS[mtype]
+            ordered = sorted(zip(these_kv_pairs.keys(), these_kv_pairs.values()),
+                             key=lambda x: this_order[x[0]])
+            kv_string = '_'.join(['-'.join(s) for s in ordered])
+
+            # Create full name as common_name + unique filetype + original ext
+            exts = op.basename(f).split('.')[1:]
+            clean_exts = '.'.join([e for e in exts if e in ALLOWED_EXTS])
+
+            full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
+            full_name = op.join(data_dir, full_name)
 
             if options['debug']:
                 print("Renaming '%s' to '%s'" % (f, full_name))
@@ -503,6 +527,11 @@ def _extract_metadata(data_dir, cfg):
 
             if 'spinoza_metadata' in cfg.keys():
                 ftype_metadata.update(spi_md['fmap']['phasediff'])
+
+        if dtype == 'func' and ftype == 'epi':
+
+            if 'spinoza_metadata' in cfg.keys():
+                ftype_metadata.update(spi_md['func']['epi'])
 
         if dtype == 'dwi' and ftype == 'dwi':
 
