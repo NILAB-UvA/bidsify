@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 handler = logging.FileHandler('bidsify.log')
 handler.setLevel(logging.INFO)
 
-
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
 MTYPE_ORDERS = dict(
 
@@ -211,26 +210,16 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         print('%s already converted - skipping ...' % this_out_dir)
         return
 
-    # If there are DICOMS, we FIRST need to convert them
-    dicom_exts = ['DCM', 'dcm', 'DICOMDIR', 'dicomdir', 'Dicom', 'DICOM']
-    dicom_files = sorted(_glob(op.join(this_out_dir, '*'), dicom_exts))
+    # Make dir and copy all files to this dir
+    _make_dir(this_out_dir)
+    [shutil.copy(f, this_out_dir) for f in glob(op.join(cdir, '*'))]
 
-    if dicom_files:
-        cmd = ['dcm2niix', '-v', '0', '-b', 'y', '-f',
-               '%n_%p', '%s' % op.join(cdir, 'DICOMDIR')]
-        _run_cmd(cmd)
+    # First, convert all MRI-files
+    convert_mri(this_out_dir, cfg)
 
     # Rename and move stuff
     data_dirs = [_move_and_rename(cdir, dtype, sub_name, this_out_dir, cfg)
                  for dtype in cfg['data_types']]
-
-    # 1. Transform MRI
-    mri_exts = ['.PAR', '.par', '.nii', '.nifti', '.Nifti', '.dcm', '.DICOM',
-                '.DCM', '.dicom']
-    mri_files = sorted(_glob(op.join(this_out_dir, '*'), mri_exts))
-
-    Parallel(n_jobs=n_cores)(delayed(convert_mri)(f, options['debug'], cfg)
-                             for f in mri_files)
 
     # 2. Transform PHYS (if any)
     if mappings['physio'] is not None:
@@ -291,8 +280,6 @@ def _parse_cfg(cfg_file, raw_data_dir):
 
     if 'spinoza_data' not in options:
         cfg['options']['spinoza_data'] = False
-    else:
-        cfg['options']['spinoza_data'] = bool(cfg['options']['spinoza_data'])
 
     if 'deface' not in options:
         cfg['options']['deface'] = False
@@ -308,6 +295,24 @@ def _parse_cfg(cfg_file, raw_data_dir):
             print("To enable defacing, you need to install nipype (pip "
                   "install nipype) manually! Setting deface to False for now")
             cfg['options']['deface'] = False
+
+    data_types = [c for c in cfg.keys() if c in DTYPES]
+    cfg['data_types'] = data_types
+
+    # Check config for validity
+    for dtype in data_types:
+        for element in cfg[dtype].keys():
+
+            if element == 'metadata':
+                # Skip metadata field
+                continue
+
+            # Check if every element has an 'id' field!
+            if 'id' not in cfg[dtype][element].keys():
+                msg = ("Element '%s' in data-type '%s' has no field 'id' "
+                       "(a unique identifier), which is necessary for "
+                       "conversion!" % (element, dtype))
+                raise ValueError(msg)
 
     # Now, extract and set metadata
     metadata = dict()
@@ -325,9 +330,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
         with open(spi_cfg) as f:
             cfg['spinoza_metadata'] = yaml.load(f)
 
-    data_types = [c for c in cfg.keys() if c in DTYPES]
-    cfg['data_types'] = data_types
-
+    # Check config for metadata
     for dtype in data_types:
 
         if 'metadata' in cfg[dtype].keys():
@@ -335,32 +338,9 @@ def _parse_cfg(cfg_file, raw_data_dir):
             metadata[dtype] = cfg[dtype]['metadata']
 
         for element in cfg[dtype].keys():
-            # Check if every element has an 'id' field!
-            if element == 'metadata':
-                # Skip metadata field
-                continue
 
-            has_id = 'id' in cfg[dtype][element]
-
-            if not has_id:
-                msg = ("Element '%s' in data-type '%s' has no field 'id' "
-                       "(a unique identifier), which is necessary for "
-                       "conversion!" % (element, dtype))
-                raise ValueError(msg)
-
-            if 'metadata' in cfg[dtype][element]:
-                mdata = cfg[dtype][element]['metadata']
-                metadata[dtype][element] = mdata
-
-            if dtype == 'func':
-                # Check if func elements have a task field ...
-                has_task = 'task' in cfg[dtype][element]
-
-                if not has_task:
-                    msg = ("Element '%s' (data-type: %s) does not have a "
-                           "'task' element associated with it, which is "
-                           "necessary for BIDS-compliance!")
-                    raise ValueError(msg)
+            if 'metadata' in cfg[dtype][element].keys():
+                metadata[dtype][element] = cfg[dtype][element]['metadata']
 
     for mtype in MTYPE_ORDERS.keys():
 
@@ -458,16 +438,18 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
                           (key, elem, dtype, allowed_keys))
 
             # Check if there are any keys in filename already
+            these_keys = these_kv_pairs.keys()
             for key_value in op.basename(f).split('_'):
                 if len(key_value.split('-')) == 2:
                     key, value = key_value.split('-')
                     # If allowed (part of BIDS-spec) and not already added ...
-                    if key in allowed_keys and key not in these_kv_pairs.keys():
+                    if key in allowed_keys and key not in these_keys:
                         these_kv_pairs.update({key: value})
 
             # Sort kv-pairs using MTYPE_ORDERS
             this_order = MTYPE_ORDERS[mtype]
-            ordered = sorted(zip(these_kv_pairs.keys(), these_kv_pairs.values()),
+            ordered = sorted(zip(these_kv_pairs.keys(),
+                                 these_kv_pairs.values()),
                              key=lambda x: this_order[x[0]])
             kv_string = '_'.join(['-'.join(s) for s in ordered])
 
@@ -477,6 +459,13 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
 
             full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
             full_name = op.join(data_dir, full_name)
+
+            if mtype == 'bold':
+                if 'task-' not in op.basename(full_name):
+                    msg = ("Could not assign task-name to file %s; please "
+                           "put this in the config-file under data-type 'func'"
+                           "and element '%s'" % (f, elem))
+                    raise ValueError(msg)
 
             if options['debug']:
                 print("Renaming '%s' to '%s'" % (f, full_name))
@@ -510,66 +499,60 @@ def _extract_metadata(data_dir, cfg):
         dtype_metadata.update(metadata[dtype])
 
     # Now loop over ftypes ('filetypes', e.g. bold, physio, etc.)
-    for ftype in mappings.keys():
+    for mtype in mappings.keys():
 
         # Copy common dtype metadata
-        ftype_metadata = copy(dtype_metadata)
+        mtype_metadata = copy(dtype_metadata)
 
         # Check if specific ftype metadata exists and, if so, append it
         if dtype in metadata.keys():
-            if metadata[dtype].get(ftype, None) is not None:
-                ftype_metadata.update(metadata[dtype][ftype])
+            if metadata[dtype].get(mtype, None) is not None:
+                mtype_metadata.update(metadata[dtype][mtype])
 
-        # Find functional files (bold), needed for IntendedFor field of fmaps
-        func_files = glob(op.join(op.dirname(data_dir),
-                                  'func', '*_bold.nii.gz'))
-
-        if dtype == 'func' and ftype == 'bold':
+        if dtype == 'func' and mtype == 'bold':
             # Perhaps SliceTiming?
             pass
 
-        if dtype == 'func' and ftype == 'physio':
-            # "SamplingFrequency": 100.0,
-            # "StartTime": -22.345,
-            # "Columns": ["cardiac", "respiratory", "trigger"]
-            pass
+        if dtype == 'fmap' and mtype == 'phasediff':
+            # Find 'bold' files, needed for IntendedFor field of fmaps
+            func_files = glob(op.join(op.dirname(data_dir),
+                                      'func', '*_bold.nii.gz'))
 
-        if dtype == 'fmap' and ftype == 'phasediff':
-            ftype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
+            mtype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
                                              for f in func_files]
 
             if 'spinoza_metadata' in cfg.keys():
-                ftype_metadata.update(spi_md['fmap']['phasediff'])
+                mtype_metadata.update(spi_md['fmap']['phasediff'])
 
-        if dtype == 'func' and ftype == 'epi':
-
-            if 'spinoza_metadata' in cfg.keys():
-                ftype_metadata.update(spi_md['func']['bold']['epi'])
-
-        if dtype == 'dwi' and ftype == 'dwi':
+        if dtype == 'func' and mtype == 'epi':
 
             if 'spinoza_metadata' in cfg.keys():
-                ftype_metadata.update(spi_md['dwi']['dwi'])
+                mtype_metadata.update(spi_md['func']['bold']['epi'])
 
-        if dtype == 'dwi' and ftype == 'epi':
+        if dtype == 'dwi' and mtype == 'dwi':
 
             if 'spinoza_metadata' in cfg.keys():
-                ftype_metadata.update(spi_md['dwi']['epi'])
+                mtype_metadata.update(spi_md['dwi']['dwi'])
+
+        if dtype == 'dwi' and mtype == 'epi':
+
+            if 'spinoza_metadata' in cfg.keys():
+                mtype_metadata.update(spi_md['dwi']['epi'])
 
         # Find relevant jsons
-        jsons = glob(op.join(data_dir, '*_%s.json' % ftype))
+        jsons = glob(op.join(data_dir, '*_%s.json' % mtype))
 
         for this_json in jsons:
 
             # this_metadata refers to metadata meant for current json
-            this_metadata = copy(ftype_metadata)
+            this_metadata = copy(mtype_metadata)
 
-            if dtype == 'func' and ftype == 'epi':
+            if dtype == 'func' and mtype == 'epi':
                 int_for = op.basename(this_json.replace('_epi.json',
                                                         '_bold.nii.gz'))
                 this_metadata['IntendedFor'] = 'func/%s' % int_for
 
-            if dtype == 'func' and ftype == 'bold':
+            if dtype == 'func' and mtype == 'bold':
                 base = op.basename(this_json)
                 task_name = base.split('task-')[-1].split('_')[0]
                 this_metadata.update({'TaskName': task_name})
@@ -628,6 +611,11 @@ def _deface(f):
 
     _run_cmd(['pydeface', f])  # Run pydeface
     os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
+
+
+def _update_metadata(this_metadata, f, dtype, mtype):
+
+    pass
 
 
 def _log2tsv(self, directory, logtype='Presentation'):

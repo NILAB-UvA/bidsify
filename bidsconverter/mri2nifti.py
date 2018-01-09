@@ -2,63 +2,46 @@ from __future__ import print_function, division
 import os
 import os.path as op
 from glob import glob
-from .utils import check_executable, _compress, _run_cmd
+from .utils import check_executable, _compress, _run_cmd, _glob
 
 pigz = check_executable('pigz')
 
 
-def convert_mri(mri_file, debug, cfg):
+def convert_mri(directory, cfg):
 
-    # If already a .nii.gz file, do nothing
-    if mri_file[:-6] == '.nii.gz':
-        converted_files = listify(mri_file)
+    compress = not cfg['options']['debug']
 
-    # If in "debug-mode", set compress to False to save time
-    compress = False if debug else True
-    fname, ext = op.splitext(mri_file)
-
-    # If uncompressed '.nii' file, compress and return
-    if ext == '.nii':
-        if compress:
-            _compress(mri_file)
-            converted_files = mri_file + '.gz'
-            os.remove(mri_file)
-        else:
-            converted_files = mri_file
-
-    this_dir = op.dirname(mri_file)
-
-    # Construct general dcm2niix command
-    base_cmd = ['dcm2niix', '-b', 'y', '-ba', 'y', '-x', 'y']
+    base_cmd = "dcm2niix -ba -y -x y"
     if compress:
-        base_cmd.extend(['-z', 'y'] if pigz else ['-z', 'i'])
+        base_cmd += " -z y" if pigz else " -z i"
     else:
-        base_cmd.extend(['-z', 'n'])
+        base_cmd += " -z n"
 
-    # If we've gotten this far, mri_file must be either DICOM or par/rec
-    if ext in ['.dcm', '.DICOMDIR', '.DICOM']:
-        base_cmd.extend(['-f', '%n_%p', '%s' % mri_file])
-        _run_cmd(base_cmd)
-        # This is not general enough (only works for DICOMDIR files)
-        converted_files = glob(op.join(this_dir, '*.nii.gz'))
-        os.remove(mri_file)
+    # Try converting whatever DICOM there is (they don't have a standard
+    # output-name or extension)
 
-    if ext in ['.PAR', '.Par', '.par']:
-        rec_file = glob(fname + '.[R,r][E,e][C,c]')[0]
-        if not rec_file:
-            raise ValueError("Could not find REC file corresponding to %s"
-                             % mri_file)
-        base_cmd.extend(['-f', op.basename(fname), mri_file])
-        _run_cmd(base_cmd)
-        if debug:
-            converted_files = fname + '.nii'
-        else:
-            converted_files = fname + '.nii.gz'
+    # TODO: ask for DICOM id in options, because otherwise we don't know
+    # what we're converting (and they end up in unallocated)
+    dcm_cmd = base_cmd + " -f %n_%p " + directory
+    _run_cmd(dcm_cmd.split(' '))
 
-        if 'phasediff' in converted_files:
-            converted_files = _rename_phasediff_files(fname)
-        os.remove(mri_file)
-        os.remove(rec_file)
+    # Now, check for PAR/RECs
+    pars = glob(op.join(directory, '*.PAR'))
+    for par in pars:
+        basename, ext = op.splitext(op.basename(par))
+        par_cmd = base_cmd + " -f %s %s" % (basename, par)
+        _run_cmd(par_cmd.split(' '))
+        os.remove(par)
+        os.remove(par.replace('.PAR', '.REC'))
+
+    niis = glob(op.join(directory, '*.nii'))
+    if compress:
+        for nii in niis:
+            _compress(nii)
+            os.remove(nii)
+
+    if 'phasediff' in converted_files:
+        converted_files = _rename_phasediff_files(fname)
 
     converted_files = listify(converted_files)
     for f in converted_files:

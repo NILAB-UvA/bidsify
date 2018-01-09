@@ -9,7 +9,11 @@ func:
             PhaseEncodingDirection: j
             EffectiveEchoSpacing: 0.00034545
             SliceEncodingDirection": k
-        epi:
+    epi:
+        seq:
+            PhaseEncodingDirection: j-
+            EffectiveEchoSpacing": 0.00034545
+        MB:
             PhaseEncodingDirection: j-
             EffectiveEchoSpacing": 0.00034545
 
