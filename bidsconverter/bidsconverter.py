@@ -6,6 +6,7 @@ import shutil
 import fnmatch
 import warnings
 import yaml
+import logging
 import pandas as pd
 from copy import copy, deepcopy
 from glob import glob
@@ -18,7 +19,14 @@ from .utils import (check_executable, _glob, _make_dir, _append_to_json,
                     _run_cmd)
 from .version import __version__
 
-__all__ = ['main', 'convert2bids']
+__all__ = ['main', 'bidsify']
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+handler = logging.FileHandler('bidsify.log')
+handler.setLevel(logging.INFO)
+
 
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
 MTYPE_ORDERS = dict(
@@ -87,11 +95,11 @@ def main():
         run_from_docker(cfg=args.config_file, in_dir=args.directory,
                         out_dir=args.out, validate=args.validate)
     else:
-        convert2bids(cfg=args.config_file, directory=args.directory,
-                     validate=args.validate)
+        bidsify(cfg=args.config_file, directory=args.directory,
+                validate=args.validate)
 
 
-def convert2bids(cfg, directory, validate):
+def bidsify(cfg, directory, validate):
     """ Converts (raw) MRI datasets to the BIDS-format.
 
     Parameters
@@ -116,13 +124,17 @@ def convert2bids(cfg, directory, validate):
            outputs of neuroimaging experiments. Scientific Data, 3, 160044.
     """
 
+    cfg = _parse_cfg(cfg, directory)
+    if cfg['options']['debug']:
+        logging.basicConfig(level=logging.DEBUG)
+
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
         install dcm2niix from neurodebian (Linux users) or download dcm2niix
         from Github (link) and compile locally (Mac/Windows). BidsConverter
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
         the BidsConverter Docker image!"""
-        print(msg)
+        logger.info(msg)
 
     if not check_executable('bids-validator') and validate:
         msg = """The program 'bids-validator' was not found on your computer;
@@ -134,8 +146,6 @@ def convert2bids(cfg, directory, validate):
         setting the validate option to False"""
         print(msg)
         validate = False
-
-    cfg = _parse_cfg(cfg, directory)
 
     # Extract some values from cfg for readability
     options = cfg['options']
@@ -251,6 +261,9 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg = yaml.load(config)
 
     options = cfg['options'].keys()
+
+    if 'debug' not in options:
+        cfg['options']['debug'] = False
 
     if 'log_type' not in options:
         cfg['options']['log_type'] = None
@@ -531,7 +544,7 @@ def _extract_metadata(data_dir, cfg):
         if dtype == 'func' and ftype == 'epi':
 
             if 'spinoza_metadata' in cfg.keys():
-                ftype_metadata.update(spi_md['func']['epi'])
+                ftype_metadata.update(spi_md['func']['bold']['epi'])
 
         if dtype == 'dwi' and ftype == 'dwi':
 

@@ -34,7 +34,7 @@ opts = dict(name=NAME,
             requires=REQUIRES,
             entry_points={
                 'console_scripts': [
-                    'convert2bids = bidsconverter.bidsconverter:main',
+                    'bidsify = bidsconverter.bidsconverter:main',
                     ]
                 }
             )

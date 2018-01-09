@@ -11,7 +11,7 @@ func:
             SliceEncodingDirection": k
         epi:
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing": 0.0034545
+            EffectiveEchoSpacing": 0.00034545
 
 fmap:
 
@@ -23,7 +23,7 @@ dwi:
 
     dwi:
         PhaseEncodingDirection: j
-        EffectiveEchoSpacing: 0.0034545 # not certain about this
+        EffectiveEchoSpacing: 0.00034545 # not certain about this
     epi:
         PhaseEncodingDirection: j-
-        EffectiveEchoSpacing: 0.0034545 # not certain about this
+        EffectiveEchoSpacing: 0.00034545 # not certain about this
