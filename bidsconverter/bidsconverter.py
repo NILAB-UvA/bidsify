@@ -15,17 +15,12 @@ from .mri2nifti import convert_mri
 from .behav2tsv import Pres2tsv
 from .phys2tsv import convert_phy
 from .docker import run_from_docker
-from .utils import (check_executable, _glob, _make_dir, _append_to_json,
+from .utils import (check_executable, _make_dir, _append_to_json,
                     _run_cmd)
 from .version import __version__
 
 __all__ = ['main', 'bidsify']
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-handler = logging.FileHandler('bidsify.log')
-handler.setLevel(logging.INFO)
 
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
 MTYPE_ORDERS = dict(
@@ -99,7 +94,7 @@ def main():
 
 
 def bidsify(cfg, directory, validate):
-    """ Converts (raw) MRI datasets to the BIDS-format.
+    """ Converts (raw) MRI datasets to the BIDS-format [1].
 
     Parameters
     ----------
@@ -133,7 +128,7 @@ def bidsify(cfg, directory, validate):
         from Github (link) and compile locally (Mac/Windows). BidsConverter
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
         the BidsConverter Docker image!"""
-        logger.info(msg)
+        print(msg)
 
     if not check_executable('bids-validator') and validate:
         msg = """The program 'bids-validator' was not found on your computer;
@@ -218,8 +213,21 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     convert_mri(this_out_dir, cfg)
 
     # Rename and move stuff
-    data_dirs = [_move_and_rename(cdir, dtype, sub_name, this_out_dir, cfg)
+    data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
                  for dtype in cfg['data_types']]
+    data_dirs = [ddir for ddir in data_dirs if ddir is not None]
+
+    unallocated = [f for f in glob(op.join(this_out_dir, '*')) if op.isfile(f)]
+
+    if unallocated:
+        print('Unallocated files for %s:' % sub_name)
+        print('\n'.join(unallocated))
+
+        unall_dir = op.join(op.dirname(cfg['options']['out_dir']),
+                            'unallocated', sub_name)
+        _make_dir(unall_dir)
+        for f in unallocated:
+            shutil.move(f, unall_dir)
 
     # 2. Transform PHYS (if any)
     if mappings['physio'] is not None:
@@ -250,6 +258,9 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg = yaml.load(config)
 
     options = cfg['options'].keys()
+
+    if 'mri_ext' not in options:
+        cfg['options']['mri_ext'] = 'PAR'
 
     if 'debug' not in options:
         cfg['options']['debug'] = False
@@ -292,11 +303,13 @@ def _parse_cfg(cfg_file, raw_data_dir):
         try:
             import nipype
         except ImportError:
-            print("To enable defacing, you need to install nipype (pip "
-                  "install nipype) manually! Setting deface to False for now")
+            msg = """To enable defacing, you need to install nipype (pip
+                  install nipype) manually! Setting deface to False for now"""
+            print(msg)
             cfg['options']['deface'] = False
 
-    data_types = [c for c in cfg.keys() if c in DTYPES]
+    # Check which data_types are listed in the config file
+    data_types = [c for c in cfg.keys() if c in DTYPES]  # maybe a check here?
     cfg['data_types'] = data_types
 
     # Check config for validity
@@ -352,8 +365,11 @@ def _parse_cfg(cfg_file, raw_data_dir):
     return cfg
 
 
-def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
+def _move_and_rename(cdir, dtype, sub_name, cfg):
     ''' Does the actual work of processing/renaming/conversion. '''
+
+    # Define out-Directory
+    this_out_dir = op.join(cdir, dtype)
 
     # The number of coherent elements for a given data-type (e.g. runs in
     # bold-fmri, or different T1 acquisitions for anat) ...
@@ -364,8 +380,6 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
         # If there are for some reason no elements, raise error
         raise ValueError("The category '%s' does not have any entries in your "
                          "config-file!" % dtype)
-
-    unallocated = []  # Keep track of 'unallocated' files
 
     # Loop over contents of dtype (e.g. func)
     for elem in cfg[dtype].keys():
@@ -397,8 +411,9 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
         if not files:
             print("Could not find files for element %s (dtype %s) with "
                   "identifier '%s'" % (elem, dtype, idf))
-
-        data_dir = _make_dir(op.join(out_dir, dtype))
+            return None
+        else:
+            data_dir = _make_dir(this_out_dir)
 
         for f in files:
             # Rename files according to mapping
@@ -420,7 +435,6 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
                        "is one of the following:\n %r" % (f, types))
                 raise ValueError(msg)
             elif len(types) == 0:
-                unallocated.append(f)
                 # No file found; ends up in unallocated (printed later).
                 continue
             else:
@@ -472,11 +486,7 @@ def _move_and_rename(cdir, dtype, sub_name, out_dir, cfg):
 
             if not op.isfile(full_name):
                 # only do it if it isn't already done
-                shutil.copyfile(f, full_name)
-
-    if unallocated:
-        print('Unallocated files for %s:' % sub_name)
-        print('\n'.join(unallocated))
+                shutil.move(f, full_name)
 
     return data_dir
 
@@ -509,60 +519,37 @@ def _extract_metadata(data_dir, cfg):
             if metadata[dtype].get(mtype, None) is not None:
                 mtype_metadata.update(metadata[dtype][mtype])
 
-        if dtype == 'func' and mtype == 'bold':
-            # Perhaps SliceTiming?
-            pass
-
         if dtype == 'fmap' and mtype == 'phasediff':
-            # Find 'bold' files, needed for IntendedFor field of fmaps
+            # Find 'bold' files, needed for IntendedFor field of fmaps,
+            # assuming a single phasediff file for all bold-files
             func_files = glob(op.join(op.dirname(data_dir),
                                       'func', '*_bold.nii.gz'))
 
             mtype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
                                              for f in func_files]
 
-            if 'spinoza_metadata' in cfg.keys():
-                mtype_metadata.update(spi_md['fmap']['phasediff'])
-
-        if dtype == 'func' and mtype == 'epi':
-
-            if 'spinoza_metadata' in cfg.keys():
-                mtype_metadata.update(spi_md['func']['bold']['epi'])
-
-        if dtype == 'dwi' and mtype == 'dwi':
-
-            if 'spinoza_metadata' in cfg.keys():
-                mtype_metadata.update(spi_md['dwi']['dwi'])
-
-        if dtype == 'dwi' and mtype == 'epi':
-
-            if 'spinoza_metadata' in cfg.keys():
-                mtype_metadata.update(spi_md['dwi']['epi'])
-
         # Find relevant jsons
         jsons = glob(op.join(data_dir, '*_%s.json' % mtype))
 
         for this_json in jsons:
+            # Loop over jsons
+            fbase = op.basename(this_json)
+            acqtype = fbase.split('acq-')[-1].split('_')[0]
 
             # this_metadata refers to metadata meant for current json
             this_metadata = copy(mtype_metadata)
+            if 'spinoza_metadata' in cfg.keys():
+                this_metadata.update(spi_md[dtype][mtype][acqtype])
 
-            if dtype == 'func' and mtype == 'epi':
-                int_for = op.basename(this_json.replace('_epi.json',
-                                                        '_bold.nii.gz'))
+            if dtype in ['func', 'dwi'] and mtype == 'epi':
+                epi_name = fbase.replace('_epi.json', '_bold.nii.gz')
+                epi_name = epi_name.replace('_epi.json', '_dwi.nii.gz')
+                int_for = epi_name.replace('task-', 'dir-')
                 this_metadata['IntendedFor'] = 'func/%s' % int_for
 
             if dtype == 'func' and mtype == 'bold':
-                base = op.basename(this_json)
-                task_name = base.split('task-')[-1].split('_')[0]
+                task_name = fbase.split('task-')[-1].split('_')[0]
                 this_metadata.update({'TaskName': task_name})
-
-                # Add spinoza-specific metadata if available
-                if 'spinoza_metadata' in cfg.keys():
-                    acq_type = base.split('acq-')[-1].split('_')[0]
-                    if acq_type not in ['MB', 'epi', 'seq']:
-                        acq_type = 'seq'
-                    this_metadata.update(spi_md['func']['bold'][acq_type])
 
             _append_to_json(this_json, this_metadata)
 

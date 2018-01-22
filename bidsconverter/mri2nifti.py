@@ -2,7 +2,7 @@ from __future__ import print_function, division
 import os
 import os.path as op
 from glob import glob
-from .utils import check_executable, _compress, _run_cmd, _glob
+from .utils import check_executable, _compress, _run_cmd
 
 pigz = check_executable('pigz')
 
@@ -10,29 +10,27 @@ pigz = check_executable('pigz')
 def convert_mri(directory, cfg):
 
     compress = not cfg['options']['debug']
+    mri_ext = cfg['options']['mri_ext']
 
-    base_cmd = "dcm2niix -ba -y -x y"
+    base_cmd = "dcm2niix -ba y -x y"
     if compress:
         base_cmd += " -z y" if pigz else " -z i"
     else:
         base_cmd += " -z n"
 
-    # Try converting whatever DICOM there is (they don't have a standard
-    # output-name or extension)
-
-    # TODO: ask for DICOM id in options, because otherwise we don't know
-    # what we're converting (and they end up in unallocated)
-    dcm_cmd = base_cmd + " -f %n_%p " + directory
-    _run_cmd(dcm_cmd.split(' '))
-
-    # Now, check for PAR/RECs
-    pars = glob(op.join(directory, '*.PAR'))
-    for par in pars:
-        basename, ext = op.splitext(op.basename(par))
-        par_cmd = base_cmd + " -f %s %s" % (basename, par)
-        _run_cmd(par_cmd.split(' '))
-        os.remove(par)
-        os.remove(par.replace('.PAR', '.REC'))
+    mri_files = glob(op.join(directory, '*.%s' % mri_ext))
+    for f in mri_files:
+        if mri_ext == 'PAR':
+            basename, ext = op.splitext(op.basename(f))
+            par_cmd = base_cmd + " -f %s %s" % (basename, f)
+            # if debug, print dcm2niix output
+            _run_cmd(par_cmd.split(' '), verbose=cfg['options']['debug'])
+            os.remove(f)
+            os.remove(f.replace('.%s' % mri_ext, '.REC'))
+        else:
+            # Experimental
+            dcm_cmd = base_cmd + " -f %n_%p " + directory
+            _run_cmd(dcm_cmd.split(' '))
 
     niis = glob(op.join(directory, '*.nii'))
     if compress:
@@ -40,6 +38,7 @@ def convert_mri(directory, cfg):
             _compress(nii)
             os.remove(nii)
 
+    '''
     if 'phasediff' in converted_files:
         converted_files = _rename_phasediff_files(fname)
 
@@ -91,3 +90,4 @@ def _rename_phasediff_files(fname):
 
 def listify(obj):
     return [obj] if not isinstance(obj, list) else obj
+'''
