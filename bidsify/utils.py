@@ -79,7 +79,7 @@ def _glob(path, wildcards):
 
 
 def _run_cmd(cmd, verbose=False):
-
+    print("RUNNING: %s" % cmd)
     if verbose:
         subprocess.call(cmd)
     else:

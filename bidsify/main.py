@@ -211,7 +211,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
-
+    '''
     # Rename and move stuff
     data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
                  for dtype in cfg['data_types']]
@@ -245,7 +245,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     if options['deface']:
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
         [_deface(f) for f in anat_files]
-
+'''
 
 def _parse_cfg(cfg_file, raw_data_dir):
     """ Parses config file and sets defaults. """
@@ -361,7 +361,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
 
 
 def _move_and_rename(cdir, dtype, sub_name, cfg):
-    ''' Does the actual work of processing/renaming/conversion. '''
+    """ Does the actual work of processing/renaming/conversion. """
 
     # Define out-Directory
     this_out_dir = op.join(cdir, dtype)
@@ -601,7 +601,7 @@ def _update_metadata(this_metadata, f, dtype, mtype):
 
 
 def _log2tsv(self, directory, logtype='Presentation'):
-    ''' Converts behavioral logs to event_files. '''
+    """ Converts behavioral logs to event_files. """
 
     if logtype is None:
         if self._debug:
