@@ -79,9 +79,9 @@ def _glob(path, wildcards):
 
 
 def _run_cmd(cmd, verbose=False):
-    print("RUNNING: %s" % cmd)
     if verbose:
         subprocess.call(cmd)
     else:
+        print("RUNNING CMD: %s" % ' '.join(cmd))
         with open(os.devnull, 'w') as devnull:
             subprocess.call(cmd, stdout=devnull)
