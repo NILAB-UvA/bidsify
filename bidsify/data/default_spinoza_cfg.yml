@@ -1,0 +1,17 @@
+options:
+    mri_ext: PAR
+    debug: False
+    log_type: ''
+    n_cores: 1
+    subject_stem: sub
+    deface: True
+    spinoza_data: True
+
+mappings:
+    bold: _bold
+    T1w: _T1w
+    dwi: _dwi
+    physio: _physio
+    events: _events
+    B0: _B0
+    epi: _epi

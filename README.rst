@@ -1,17 +1,17 @@
-BidsConverter - converts your (raw) data to the BIDS-format
+``bidsify``bidsify - converts your (raw) data to the BIDS-format
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
 .. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
-.. image:: https://coveralls.io/repos/github/lukassnoek/BidsConverter/badge.svg?branch=refactor
-    :target: https://coveralls.io/github/lukassnoek/BidsConverter?branch=refactor
+.. image:: https://coveralls.io/repos/github/lukassnoek/bidsify/badge.svg?branch=refactor
+    :target: https://coveralls.io/github/lukassnoek/bidsify?branch=refactor
 
-.. image:: https://travis-ci.org/lukassnoek/BidsConverter.svg?branch=refactor
-    :target: https://travis-ci.org/lukassnoek/BidsConverter
+.. image:: https://travis-ci.org/lukassnoek/bidsify.svg?branch=refactor
+    :target: https://travis-ci.org/lukassnoek/bidsify
 
 .. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
-    :target: https://ci.appveyor.com/project/lukassnoek/bidsconverter
+    :target: https://ci.appveyor.com/project/lukassnoek/bidsify
 
 .. image:: https://img.shields.io/badge/python-2.7-blue.svg
     :target: https://www.python.org/download/releases/2.7
@@ -26,14 +26,14 @@ your files such that it fits the BIDS naming scheme and conforms
 to file-formats specified by BIDS. This tool has been used to
 successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
 
-BidsConverter is still very much in development, so there are probably still some bugs for data
+``Bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
 in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request
 with your proposed solution!
 
 Features
 --------
-So far, BidsConverter is able to do the following:
+So far, ``bidsify`` is able to do the following:
 
 - Rename raw files to the format specified by BIDS (using the information in the config.json)
 - Convert raw Philips PAR/REC files and DICOM files (experimental; not fully tested) to nifti.gz format
@@ -52,7 +52,7 @@ It does not support (yet):
 
 The config.json file
 --------------------
-The BidsConverter only needs a ``config.json`` file, which contains
+``bidsify`` only needs a ``config.json`` file, which contains
 information that is used to rename and convert the raw files. An
 example of a complete ``config.json`` file can be found here_.
 
@@ -74,6 +74,7 @@ is the `"options"` section. An example of this section could be:
         "subject_stem": "sub",
         "out_dir": "bids_converted",
         "spinoza_data": 0
+    }
   }
 
 No options *need* to be set explicitly as they all have sensible defaults.
@@ -92,8 +93,8 @@ Note: when the `"spinoza_data"` attribute is set to 1 (True), some default metad
 ~~~~~~~~~~
 The BIDS-format specifies the naming and format of several types of MRI(-related) filetypes.
 These filetypes have specific suffixes, which are appended to the filenames in the renaming
-process handled by the BidsConverter. The `"mappings"` section in the config is meant to
-tell the BidsConverter what filetype can be identified by which "key". Thus, the mappings
+process handled by ``bidsify``. The `"mappings"` section in the config is meant to
+tell ``bidsify`` what filetype can be identified by which "key". Thus, the mappings
 section consists of `"filetype": "identifier"` pairs. Basically, if BIDS requires a
 specific suffix for a filetype, you need to specify that here. For example, a standard
 dataset with several BOLD-fMRI files, a T1, and physiological recordings could have
@@ -247,7 +248,7 @@ The config-file should, in that case, look like:
 
   }
 
-The BidsConverter will then create four files (assuming that they can be "found" using their corresponding "ids"):
+``bidsify`` will then create four files (assuming that they can be "found" using their corresponding "ids"):
 
 - ``sub-001_task-nback_run-1_acq-sequential_bold.nii.gz``
 - ``sub-001_task-nback_run-2_acq-sequential_bold.nii.gz``
@@ -334,9 +335,9 @@ datatype section. For example, to do so for the previous examples:
   }
 
 
-Usage of BidsConverter
+Usage of ``bidsify``
 ----------------------
-After installing the BidsConverter (see next section), the command ``convert2bids``
+After installing ``bidsify`` (see next section), the command ``bidsify``
 should be available in your terminal. It takes two (named) arguments:
 
 - -d ("directory"): path to the directory with the raw data that you want to convert
@@ -346,7 +347,7 @@ If no arguments are given, the "directory" is assumed to be the current working 
 and the config-file is assumed to be named "config.json" and to be located in the current
 working directory.
 
-Importantly, BidsConverter assumes that the directory with raw data is organized as follows
+Importantly, ``bidsify`` assumes that the directory with raw data is organized as follows
 (for the simple case of one BOLD run and one T1):
 
 - sub-01
@@ -386,14 +387,14 @@ a session-directory. **Note**: the session directory **must** be named "ses-<som
 Also, instead of separate \*.PAR and \*.REC files, you can also have a single or multiple DICOM
 files instead. (DICOM conversion has, however, not been thoroughly tested ...)
 
-Installing BidsConverter & dependencies
+Installing ``bidsify`` & dependencies
 ---------------------------------------
 For now, it can only be installed from Github (no PyPI package yet), either by cloning
 this repository directory (and then ``python setup.py install``) or installing it using ``pip``::
 
-    $ pip install git+https://github.com/lukassnoek/BidsConverter.git@master
+    $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
 
-In terms of dependencies: BidsConverter currently only works with the
+In terms of dependencies: ``bidsify`` currently only works with the
 `dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which
 can be installed on Linux-systems using neurodebian::
 
@@ -401,7 +402,7 @@ can be installed on Linux-systems using neurodebian::
 
 For other platforms (Mac, Windows), check out the dcm2niix `Github page <https://github.com/rordenlab/dcm2niix/releases>`_.
 
-Apart from dcm2niix, BidsConverter depends on the following Python packages:
+Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
 
 - nibabel
 - scipy

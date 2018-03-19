@@ -7,6 +7,7 @@ import fnmatch
 import warnings
 import yaml
 import logging
+import warnings
 import pandas as pd
 from copy import copy, deepcopy
 from glob import glob
@@ -19,8 +20,8 @@ from .utils import (check_executable, _make_dir, _append_to_json,
                     _run_cmd)
 from .version import __version__
 
-__all__ = ['main', 'bidsify']
 
+__all__ = ['run_cmd', 'bidsify']
 
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
 MTYPE_ORDERS = dict(
@@ -48,8 +49,8 @@ ALLOWED_EXTS = ['par', '.Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
 ALLOWED_EXTS.extend([s.upper() for s in ALLOWED_EXTS])
 
 
-def main():
-    """ Calls the convert2bids function with cmd line arguments. """
+def run_cmd():
+    """ Calls the bidsify function with cmd line arguments. """
 
     DESC = ("This is a command line tool to convert "
             "unstructured data-directories to a BIDS-compatible format")
@@ -69,7 +70,7 @@ def main():
     parser.add_argument('-c', '--config_file',
                         help='Config-file with img. acq. parameters',
                         required=False,
-                        default=op.join(os.getcwd(), 'config.json'))
+                        default=op.join(os.getcwd(), 'config.yml'))
 
     parser.add_argument('-v', '--validate',
                         help='Run bids-validator',
@@ -125,9 +126,9 @@ def bidsify(cfg, directory, validate):
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
         install dcm2niix from neurodebian (Linux users) or download dcm2niix
-        from Github (link) and compile locally (Mac/Windows). BidsConverter
+        from Github (link) and compile locally (Mac/Windows); bidsify
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
-        the BidsConverter Docker image!"""
+        the bidsify Docker image!"""
         print(msg)
 
     if not check_executable('bids-validator') and validate:
@@ -172,7 +173,7 @@ def bidsify(cfg, directory, validate):
 
 
 def _process_directory(cdir, out_dir, cfg, is_sess=False):
-    """ Main workhorse of BidsConverter """
+    """ Main workhorse of bidsify """
 
     options = cfg['options']
     mappings = cfg['mappings']
@@ -200,8 +201,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         return None
 
     already_exists = op.isdir(this_out_dir)
-
-    if already_exists and not options['overwrite']:
+    if already_exists:
         print('%s already converted - skipping ...' % this_out_dir)
         return
 
@@ -284,11 +284,6 @@ def _parse_cfg(cfg_file, raw_data_dir):
         out_dir = cfg['options']['out_dir']
         cfg['options']['out_dir'] = op.join(raw_data_dir, out_dir)
 
-    if 'overwrite' not in options:
-        cfg['options']['overwrite'] = False
-    else:
-        cfg['options']['overwrite'] = bool(cfg['options']['overwrite'])
-
     if 'spinoza_data' not in options:
         cfg['options']['spinoza_data'] = False
 
@@ -296,7 +291,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg['options']['deface'] = False
 
     if cfg['options']['deface'] and 'FSLDIR' not in os.environ.keys():
-        print("Cannot deface because FSL is not installed ...")
+        warnings.warn("Cannot deface because FSL is not installed ...")
         cfg['options']['deface'] = False
 
     if cfg['options']['deface']:
@@ -305,7 +300,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
         except ImportError:
             msg = """To enable defacing, you need to install nipype (pip
                   install nipype) manually! Setting deface to False for now"""
-            print(msg)
+            warnings.warn(msg)
             cfg['options']['deface'] = False
 
     # Check which data_types are listed in the config file
@@ -330,8 +325,8 @@ def _parse_cfg(cfg_file, raw_data_dir):
     # Now, extract and set metadata
     metadata = dict()
 
-    # Always add bidsconverter version
-    metadata['toplevel'] = dict(BidsConverterVersion=__version__)
+    # Always add bidsify version
+    metadata['toplevel'] = dict(BidsifyVersion=__version__)
 
     if 'metadata' in cfg.keys():
         metadata['toplevel'].update(cfg['metadata'])

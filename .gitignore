@@ -103,5 +103,4 @@ ENV/
 OLD/
 .DS_Store
 
-bidsconverter/data/PIOP2
-bidsconverter/data/Upgrade
+bidsify/data/test_data

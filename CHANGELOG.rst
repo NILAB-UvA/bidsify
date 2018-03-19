@@ -3,13 +3,13 @@ CHANGELOG
 
 Version 0.3.0 (upcoming)
 -------------
-Version 0.3.0 of BidsConverter will be the first release after the major refactor.
+Version 0.3.0 of bidsify will be the first release after the major refactor.
 It contains the following (major) changes:
 
 - ENH: accepts both json and yaml config files
 - ENH: major refactoring of package structure (now based on `shablona <https://github.com/uwescience/shablona>`_)
 - ENH: writes out a (default) dataset_description.json and participants.tsv file
-- ENH: option to run BidsConverter in a docker image!
+- ENH: option to run ``bidsify`` in a docker image!
 
 Versions < 0.3.0
 ----------------
