@@ -35,17 +35,17 @@ MTYPE_ORDERS = dict(
               stim=8),
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
-    # Note: task is actually not a key for epi, but we treat it as 'bold'
+    # Note: 'task' is actually not a key for epi, but we treat it as 'bold'
     epi=dict(sub=0, ses=1, acq=2, run=3, task=4, dir=5, epi=6)
 )
 
 # For some reason, people seem to use periods in filenames, so
 # remove all unnecessary 'extensions'
-ALLOWED_EXTS = ['par', '.Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
+ALLOWED_EXTS = ['par', 'Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
                 'Gz', 'dcm', 'Dcm', 'dicom', 'Dicom', 'dicomdir',
                 'Dicomdir', 'pickle', 'json', 'edf', 'log', 'bz2',
                 'tar', 'phy', 'cPickle', 'pkl', 'jl', 'tsv', 'csv',
-                'txt']
+                'txt', 'bval', 'bvec']
 ALLOWED_EXTS.extend([s.upper() for s in ALLOWED_EXTS])
 
 
@@ -164,7 +164,9 @@ def bidsify(cfg, directory, validate):
     shutil.copyfile(src=desc_json, dst=dst)
 
     # Write participants.tsv to disk
-    sub_names = [op.basename(s) for s in sub_dirs]
+    found_sub_dirs = sorted(glob(op.join(cfg['options']['out_dir'], 'sub-*')))
+    sub_names = [op.basename(s) for s in found_sub_dirs]
+
     participants_tsv = pd.DataFrame(index=range(len(sub_names)),
                                     columns=['participant_id'])
     participants_tsv['participant_id'] = sub_names
@@ -176,8 +178,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     """ Main workhorse of bidsify """
 
     options = cfg['options']
-    mappings = cfg['mappings']
-    n_cores = options['n_cores']
 
     if is_sess:
         sub_name = _extract_sub_nr(options['subject_stem'],
@@ -211,7 +211,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
-    '''
+
     # Rename and move stuff
     data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
                  for dtype in cfg['data_types']]
@@ -230,8 +230,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
             shutil.move(f, unall_dir)
 
     # 2. Transform PHYS (if any)
-    if mappings['physio'] is not None:
-        idf = mappings['physio']
+    if cfg['mappings']['physio'] is not None:
+        idf = cfg['mappings']['physio']
+        n_cores = cfg['options']['n_cores']
         phys = sorted(glob(op.join(this_out_dir, '*', '*%s*' % idf)))
         Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
@@ -245,7 +246,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     if options['deface']:
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
         [_deface(f) for f in anat_files]
-'''
+
 
 def _parse_cfg(cfg_file, raw_data_dir):
     """ Parses config file and sets defaults. """
@@ -364,7 +365,7 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
     """ Does the actual work of processing/renaming/conversion. """
 
     # Define out-Directory
-    this_out_dir = op.join(cdir, dtype)
+    dtype_out_dir = op.join(cdir, dtype)  # e.g. sub-01/ses-01/anat
 
     # The number of coherent elements for a given data-type (e.g. runs in
     # bold-fmri, or different T1 acquisitions for anat) ...
@@ -402,13 +403,12 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
         # Find files corresponding to func/anat/dwi/fieldmap
         files = [f for f in glob(op.join(cdir, '*%s*' % idf))
                  if op.isfile(f)]
-
         if not files:
             print("Could not find files for element %s (dtype %s) with "
                   "identifier '%s'" % (elem, dtype, idf))
             return None
         else:
-            data_dir = _make_dir(this_out_dir)
+            data_dir = _make_dir(dtype_out_dir)
 
         for f in files:
             # Rename files according to mapping
@@ -468,7 +468,6 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
 
             full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
             full_name = op.join(data_dir, full_name)
-
             if mtype == 'bold':
                 if 'task-' not in op.basename(full_name):
                     msg = ("Could not assign task-name to file %s; please "
@@ -529,12 +528,21 @@ def _extract_metadata(data_dir, cfg):
         for this_json in jsons:
             # Loop over jsons
             fbase = op.basename(this_json)
-            acqtype = fbase.split('acq-')[-1].split('_')[0]
+            if 'acq' in fbase:
+                acqtype = fbase.split('acq-')[-1].split('_')[0]
 
             # this_metadata refers to metadata meant for current json
             this_metadata = copy(mtype_metadata)
             if 'spinoza_metadata' in cfg.keys():
-                this_metadata.update(spi_md[dtype][mtype][acqtype])
+                # Append spinoza metadata to current json according to dtype
+                # (anat, func, etc.) and mtype (phasediff, bold, etc.)
+                if spi_md.get(dtype, None) is not None:
+                    tmp_metadata = spi_md.get(dtype)
+                    if tmp_metadata.get(mtype, None) is not None:
+                        tmp_metadata = tmp_metadata.get(mtype)
+                        if tmp_metadata.get(acqtype, None) is not None:
+                            tmp_metadata = tmp_metadata.get(acqtype)
+                    this_metadata.update(tmp_metadata)
 
             if dtype in ['func', 'dwi'] and mtype == 'epi':
                 epi_name = fbase.replace('_epi.json', '_bold.nii.gz')

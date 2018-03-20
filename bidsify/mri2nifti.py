@@ -37,7 +37,6 @@ def convert_mri(directory, cfg):
         for nii in niis:
             _compress(nii)
             os.remove(nii)
-
     '''
     if 'phasediff' in converted_files:
         converted_files = _rename_phasediff_files(fname)
