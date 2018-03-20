@@ -1,4 +1,4 @@
-``bidsify``bidsify - converts your (raw) data to the BIDS-format
+``bidsify`` - converts your (raw) data to the BIDS-format
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
