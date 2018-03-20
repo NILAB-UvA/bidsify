@@ -33,7 +33,7 @@ install:
 script:
 - mkdir for_test
 - cd for_test
-- py.test --pyargs bidsconverter --cov-report term-missing --cov=bidsconverter
+- py.test --pyargs bidsify --cov-report term-missing --cov=bidsify
 
 after_success:
 - coveralls

@@ -1,34 +1,41 @@
-func:
+# Structure: dtype --> mtype --> acqtype
+func:  # dtype
 
-    bold:
-        seq:
+    bold:  # mtype
+        SeqSense2Mm3:  # acqtype
+            # Standard non-MB sequence
             PhaseEncodingDirection: j
             EffectiveEchoSpacing: 0.00034545
             SliceEncodingDirection: k
-        MB:
+        MB3Sense2Mm3:
+            # old MB3 sequence
             PhaseEncodingDirection: j
             EffectiveEchoSpacing: 0.00034545
-            SliceEncodingDirection": k
-    epi:
-        seq:
+            SliceEncodingDirection: k
+    epi:  # a.k.a. topup (but 'epi' according to BIDS)
+        SeqSense2Mm3:
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing": 0.00034545
-        MB:
+            EffectiveEchoSpacing: 0.00034545
+            SliceEncodingDirection: k
+        MB3Sense2Mm3:
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing": 0.00034545
+            EffectiveEchoSpacing: 0.00034545
+            SliceEncodingDirection: k
 
-fmap:
+fmap:  # dtype
 
-    phasediff:
+    phasediff:  # mtype
 
-        EchoTime1: 0.003
-        EchoTime2: 0.008
+        Mm2:  # acqtype
+            EchoTime1: 0.003
+            EchoTime2: 0.008
 
-dwi:
+dwi:  # dtype
 
-    dwi:
-        PhaseEncodingDirection: j
-        EffectiveEchoSpacing: 0.00034545 # not certain about this
+    dwi:  # mtype
+        SeqSense2Dirs32:  # acqtype
+            PhaseEncodingDirection: j
+            EffectiveEchoSpacing: 0.00034545 # not certain about this
     epi:
         PhaseEncodingDirection: j-
         EffectiveEchoSpacing: 0.00034545 # not certain about this

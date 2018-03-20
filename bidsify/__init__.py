@@ -1,2 +1,2 @@
 from __future__ import absolute_import, division, print_function
-from .main import *  # noqa
+from .main import bidsify  # noqa

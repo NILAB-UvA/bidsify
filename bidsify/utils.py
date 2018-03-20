@@ -60,7 +60,7 @@ def _compress(f, pigz):
 
 
 def _make_dir(path):
-    ''' Creates dir-if-not-exists-already. '''
+    """ Creates dir-if-not-exists-already. """
 
     if not op.isdir(path):
         os.makedirs(path)
@@ -69,7 +69,7 @@ def _make_dir(path):
 
 
 def _glob(path, wildcards):
-    ''' Finds files with different wildcards. '''
+    """ Finds files with different wildcards. """
 
     files = []
     for w in wildcards:
@@ -78,10 +78,16 @@ def _glob(path, wildcards):
     return sorted(files)
 
 
-def _run_cmd(cmd, verbose=False):
+def _run_cmd(cmd, verbose=False, outfile=None):
+
     if verbose:
-        print("RUNNING CMD: %s" % ' '.join(cmd))
-        subprocess.call(cmd)
+        if outfile is None:
+            rs = subprocess.call(cmd)
+        else:
+            with open(outfile, 'w') as f:
+                rs = subprocess.call(cmd, stdout=f)
     else:
         with open(os.devnull, 'w') as devnull:
-            subprocess.call(cmd, stdout=devnull)
+            rs = subprocess.call(cmd, stdout=devnull)
+
+    return rs

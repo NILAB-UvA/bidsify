@@ -24,9 +24,18 @@ from .version import __version__
 __all__ = ['run_cmd', 'bidsify']
 
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
+MTYPE_PER_DTYPE = dict(
+    func=['bold'],
+    anat=['T1w', 'T2w', 'FLAIR'],
+    dwi=['dwi'],
+    fmap=['phasediff']
+)
+
 MTYPE_ORDERS = dict(
 
     T1w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T1w=6),
+    T2w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T2w=6),
+    FLAIR=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, FLAIR=6),
     bold=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, bold=7),
     events=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, events=7),
     physio=dict(sub=0, ses=1, task=2, acq=3, rec=4, run=5, echo=6, recording=7,
@@ -87,19 +96,19 @@ def run_cmd():
         args.out = op.dirname(args.directory)
 
     if args.docker:
-        run_from_docker(cfg=args.config_file, in_dir=args.directory,
+        run_from_docker(cfg_path=args.config_file, in_dir=args.directory,
                         out_dir=args.out, validate=args.validate)
     else:
-        bidsify(cfg=args.config_file, directory=args.directory,
+        bidsify(cfg_path=args.config_file, directory=args.directory,
                 validate=args.validate)
 
 
-def bidsify(cfg, directory, validate):
+def bidsify(cfg_path, directory, validate):
     """ Converts (raw) MRI datasets to the BIDS-format [1].
 
     Parameters
     ----------
-    cfg : str
+    cfg_path : str
         Path to config-file (either json or YAML file)
     directory : str
         Path to directory with raw data
@@ -119,7 +128,8 @@ def bidsify(cfg, directory, validate):
            outputs of neuroimaging experiments. Scientific Data, 3, 160044.
     """
 
-    cfg = _parse_cfg(cfg, directory)
+    cfg = _parse_cfg(cfg_path, directory)
+    cfg['orig_cfg_path'] = cfg_path
     if cfg['options']['debug']:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -129,17 +139,17 @@ def bidsify(cfg, directory, validate):
         from Github (link) and compile locally (Mac/Windows); bidsify
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
         the bidsify Docker image!"""
-        print(msg)
+        warnings.warn(msg)
 
     if not check_executable('bids-validator') and validate:
         msg = """The program 'bids-validator' was not found on your computer;
         setting the validate option to False"""
-        print(msg)
+        warnings.warn(msg)
 
     if not check_executable('bids-validator') and validate:
         msg = """The program 'bids-validator' was not found on your computer;
         setting the validate option to False"""
-        print(msg)
+        warnings.warn(msg)
         validate = False
 
     # Extract some values from cfg for readability
@@ -173,6 +183,23 @@ def bidsify(cfg, directory, validate):
     f_out = op.join(cfg['options']['out_dir'], 'participants.tsv')
     participants_tsv.to_csv(f_out, sep='\t', index=False)
 
+    if validate:
+        bids_validator_log = op.join(op.dirname(cfg['options']['out_dir']),
+                                     'bids_validator_log.txt')
+        cmd = ['bids-validator', '--ignoreNiftiHeaders',
+               cfg['options']['out_dir']]
+        rs = _run_cmd(cmd, outfile=bids_validator_log, verbose=True)
+        if rs == 0:
+            msg = ("bidsify exited without errors and passed the "
+                   "bids-validator checks! For the complete bids-validator "
+                   "report, see %s." % bids_validator_log)
+            print(msg)
+        else:
+            msg = ("bidsify exited without errors but the bids-validator "
+                   "raised one or more errors. Check the complete "
+                   "bids-validator report here: %s." % bids_validator_log)
+            raise ValueError(msg)
+
 
 def _process_directory(cdir, out_dir, cfg, is_sess=False):
     """ Main workhorse of bidsify """
@@ -184,7 +211,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
                                    op.basename(op.dirname(cdir)))
         sess_name = op.basename(cdir)
         this_out_dir = op.join(out_dir, sub_name, sess_name)
-        print("\t... processing session '%s'" % sess_name)
+        print("... processing session '%s'" % sess_name)
     else:
         sub_name = _extract_sub_nr(options['subject_stem'], op.basename(cdir))
         this_out_dir = op.join(out_dir, sub_name)
@@ -211,6 +238,15 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
+
+    # If spinoza-data (there is no specific config), try to infer elements
+    # from converted data
+    if op.basename(cfg['orig_cfg_path']) == 'spinoza_cfg.yml':
+        dtype_elements = _infer_dtype_elements(this_out_dir)
+        cfg.update(dtype_elements)
+        data_types = [c for c in cfg.keys() if c in DTYPES]
+        cfg['data_types'] = data_types
+        print(dtype_elements)
 
     # Rename and move stuff
     data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
@@ -239,7 +275,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # ... and extract some extra meta-data
     [_extract_metadata(data_dir, cfg) for data_dir in data_dirs]
 
-    # Last, move topups to fmap dirs (THIS SHOULD BE A SEPARATE FUNC)
+    # Last, move topups to fmap dirs
     _fix_topups(this_out_dir)
 
     # Deface
@@ -265,9 +301,6 @@ def _parse_cfg(cfg_file, raw_data_dir):
 
     if 'debug' not in options:
         cfg['options']['debug'] = False
-
-    if 'log_type' not in options:
-        cfg['options']['log_type'] = None
 
     if 'n_cores' not in options:
         cfg['options']['n_cores'] = -1
@@ -303,6 +336,38 @@ def _parse_cfg(cfg_file, raw_data_dir):
                   install nipype) manually! Setting deface to False for now"""
             warnings.warn(msg)
             cfg['options']['deface'] = False
+
+    return cfg
+
+
+def _infer_dtype_elements(directory):
+
+    dtype_elements = dict()
+    for dtype in DTYPES:
+
+        for mtype in MTYPE_PER_DTYPE[dtype]:
+            files_found = glob(op.join(directory, '*_%s*' % mtype))
+            if files_found:
+                counter = 1
+                for f in files_found:
+                    info = op.basename(f).split('.')[0].split('_')
+                    info = [s for s in info if 'sub' not in s]
+                    info = [s for s in info if len(s.split('-')) > 1]
+                    info_dict = {s.split('-')[0]: s.split('-')[1] for s in info}
+                    info_dict['id'] = '_'.join(info)
+
+                    if dtype_elements.get(dtype, None) is not None:
+                        if info not in dtype_elements[dtype].values():
+                            dtype_elements.update({dtype: {'%s_%i' % (mtype, counter): info_dict}})
+                            counter += 1
+                    else:
+                        dtype_elements.update({dtype: {'%s_%i' % (mtype, counter): info_dict}})
+                        counter += 1
+
+    return dtype_elements
+
+
+def _check_dtypes(self, cfg, cfg_file):
 
     # Check which data_types are listed in the config file
     data_types = [c for c in cfg.keys() if c in DTYPES]  # maybe a check here?
@@ -358,7 +423,6 @@ def _parse_cfg(cfg_file, raw_data_dir):
             cfg['mappings'][mtype] = None
 
     cfg['metadata'] = metadata
-    return cfg
 
 
 def _move_and_rename(cdir, dtype, sub_name, cfg):
@@ -606,27 +670,6 @@ def _deface(f):
 def _update_metadata(this_metadata, f, dtype, mtype):
 
     pass
-
-
-def _log2tsv(self, directory, logtype='Presentation'):
-    """ Converts behavioral logs to event_files. """
-
-    if logtype is None:
-        if self._debug:
-            print("Log_type is not set, so cannot convert events-file!")
-    elif logtype == 'Presentation':
-        logs = glob(op.join(directory, '*events*'))
-        event_dir = op.join(self.project_dir, 'task_info')
-
-        if not op.isdir(event_dir):
-            raise IOError("The event_dir '%s' doesnt exist!" % event_dir)
-
-        for log in logs:
-            plc = Pres2tsv(in_file=log, event_dir=event_dir)
-            plc.parse()
-    else:
-        warnings.warn("Conversion of logfiles other than type="
-                      "'Presentation' is not (yet) supported.")
 
 
 def _extract_sub_nr(sub_stem, sub_name):

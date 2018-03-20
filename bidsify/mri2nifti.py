@@ -4,7 +4,7 @@ import os.path as op
 from glob import glob
 from .utils import check_executable, _compress, _run_cmd
 
-pigz = check_executable('pigz')
+PIGZ = check_executable('pigz')
 
 
 def convert_mri(directory, cfg):
@@ -14,7 +14,7 @@ def convert_mri(directory, cfg):
 
     base_cmd = "dcm2niix -ba y -x y"
     if compress:
-        base_cmd += " -z y" if pigz else " -z i"
+        base_cmd += " -z y" if PIGZ else " -z i"
     else:
         base_cmd += " -z n"
 

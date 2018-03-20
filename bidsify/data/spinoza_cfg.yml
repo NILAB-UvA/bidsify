@@ -1,8 +1,7 @@
 options:
-    mri_ext: PAR
+    mri_ext: PAR  # may change to enh DICOM
     debug: False
-    log_type: ''
-    n_cores: 1
+    n_cores: -1
     subject_stem: sub
     deface: True
     spinoza_data: True
@@ -13,5 +12,5 @@ mappings:
     dwi: _dwi
     physio: _physio
     events: _events
-    B0: _B0
+    phasediff: _B0
     epi: _epi
