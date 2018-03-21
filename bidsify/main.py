@@ -7,7 +7,6 @@ import fnmatch
 import warnings
 import yaml
 import logging
-import warnings
 import pandas as pd
 from copy import copy, deepcopy
 from glob import glob

@@ -36,6 +36,7 @@ install:
   - python setup.py install
 
 test_script:
+  - python download_test_data.py
   - mkdir for_test
   - cd for_test
   - py.test --pyargs bidsify --cov-report term-missing --cov=bidsify

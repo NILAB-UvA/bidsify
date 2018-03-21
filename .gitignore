@@ -103,4 +103,5 @@ ENV/
 OLD/
 .DS_Store
 
-bidsify/data/test_data
+bidsify/data/test_data/PIOP_1
+bidsify/data/test_data/Upgrade_2017

@@ -3,7 +3,7 @@ options:
     debug: False
     n_cores: -1
     subject_stem: sub
-    deface: False
+    deface: True
     spinoza_data: True
 
 mappings:
