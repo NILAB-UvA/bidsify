@@ -22,7 +22,7 @@ before_install:
   - bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
   - travis_retry sudo apt-get update -qq
   #- travis_retry sudo apt-get install dcm2niix
-  - git clone https://github.com/neurolabusc/dcm2niix c:\projects\dcm2niix
+  - git clone https://github.com/neurolabusc/dcm2niix
   - mkdir dcm2niix/build
   - cd dcm2niix/build
   - cmake ..
