@@ -13,7 +13,6 @@ from copy import copy, deepcopy
 from glob import glob
 from joblib import Parallel, delayed
 from .mri2nifti import convert_mri
-from .behav2tsv import Pres2tsv
 from .phys2tsv import convert_phy
 from .docker import run_from_docker
 from .utils import (check_executable, _make_dir, _append_to_json,
@@ -28,7 +27,7 @@ MTYPE_PER_DTYPE = dict(
     func=['bold'],
     anat=['T1w', 'T2w', 'FLAIR'],
     dwi=['dwi'],
-    fmap=['phasediff']
+    fmap=['phasediff', 'magnitude', 'epi']
 )
 
 MTYPE_ORDERS = dict(
@@ -44,8 +43,8 @@ MTYPE_ORDERS = dict(
               stim=8),
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
-    # Note: 'task' is actually not a key for epi, but we treat it as 'bold'
-    epi=dict(sub=0, ses=1, acq=2, run=3, task=4, dir=5, epi=6)
+    magnitude=dict(sub=0, ses=1, acq=2, run=3, magnitude=4),
+    epi=dict(sub=0, ses=1, acq=2, run=3, dir=5, epi=6)
 )
 
 # For some reason, people seem to use periods in filenames, so
@@ -130,6 +129,7 @@ def bidsify(cfg_path, directory, validate):
 
     cfg = _parse_cfg(cfg_path, directory)
     cfg['orig_cfg_path'] = cfg_path
+
     if cfg['options']['debug']:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -238,23 +238,28 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
+    [os.remove(f) for f in glob(op.join(this_out_dir, '*ADC*.nii.gz'))]
 
     # If spinoza-data (there is no specific config), try to infer elements
     # from converted data
     if op.basename(cfg['orig_cfg_path']) == 'spinoza_cfg.yml':
         dtype_elements = _infer_dtype_elements(this_out_dir)
         cfg.update(dtype_elements)
-        data_types = [c for c in cfg.keys() if c in DTYPES]
-        cfg['data_types'] = data_types
-        print(dtype_elements)
+
+    data_types = [c for c in cfg.keys() if c in DTYPES]
+    cfg['data_types'] = data_types
+    _add_metadata(cfg)
 
     # Rename and move stuff
     data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
                  for dtype in cfg['data_types']]
     data_dirs = [ddir for ddir in data_dirs if ddir is not None]
 
-    unallocated = [f for f in glob(op.join(this_out_dir, '*')) if op.isfile(f)]
+    # Also, while we're at it, remove bval/bvecs of topups
+    epi_bvals_bvecs = glob(op.join(this_out_dir, 'fmap', '*_epi.bv[e,a][c,l]'))
+    [os.remove(f) for f in epi_bvals_bvecs]
 
+    unallocated = [f for f in glob(op.join(this_out_dir, '*')) if op.isfile(f)]
     if unallocated:
         print('Unallocated files for %s:' % sub_name)
         print('\n'.join(unallocated))
@@ -273,10 +278,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
     # ... and extract some extra meta-data
-    [_extract_metadata(data_dir, cfg) for data_dir in data_dirs]
-
-    # Last, move topups to fmap dirs
-    _fix_topups(this_out_dir)
+    [_write_metadata(data_dir, cfg) for data_dir in data_dirs]
 
     # Deface
     if options['deface']:
@@ -347,55 +349,38 @@ def _infer_dtype_elements(directory):
 
         for mtype in MTYPE_PER_DTYPE[dtype]:
             files_found = glob(op.join(directory, '*_%s*' % mtype))
-            if files_found:
-                counter = 1
-                for f in files_found:
-                    info = op.basename(f).split('.')[0].split('_')
-                    info = [s for s in info if 'sub' not in s]
-                    info = [s for s in info if len(s.split('-')) > 1]
-                    info_dict = {s.split('-')[0]: s.split('-')[1] for s in info}
-                    info_dict['id'] = '_'.join(info)
+            counter = 1
+            for f in files_found:
+                info = op.basename(f).split('.')[0].split('_')
+                info = [s for s in info if 'sub' not in s]
+                info = [s for s in info if len(s.split('-')) > 1]
+                info_dict = {s.split('-')[0]: s.split('-')[1] for s in info}
+                info_dict['id'] = '_'.join(info)
 
-                    if dtype_elements.get(dtype, None) is not None:
-                        if info not in dtype_elements[dtype].values():
-                            dtype_elements.update({dtype: {'%s_%i' % (mtype, counter): info_dict}})
-                            counter += 1
-                    else:
-                        dtype_elements.update({dtype: {'%s_%i' % (mtype, counter): info_dict}})
+                if mtype in ['phasediff', 'magnitude']:
+                    info_dict['id'] += '*_%s' % mtype
+
+                if dtype_elements.get(dtype, None) is None:
+                    # If dtype is not yet a key, add it anyway
+                    dtype_elements.update({dtype: {'%s_%i' % (mtype, counter): info_dict}})
+                    counter += 1
+                else:
+                    if info_dict not in dtype_elements[dtype].values():
+                        dtype_elements[dtype].update({'%s_%i' % (mtype, counter): info_dict})
                         counter += 1
 
     return dtype_elements
 
 
-def _check_dtypes(self, cfg, cfg_file):
+def _add_metadata(cfg):
 
-    # Check which data_types are listed in the config file
-    data_types = [c for c in cfg.keys() if c in DTYPES]  # maybe a check here?
-    cfg['data_types'] = data_types
-
-    # Check config for validity
-    for dtype in data_types:
-        for element in cfg[dtype].keys():
-
-            if element == 'metadata':
-                # Skip metadata field
-                continue
-
-            # Check if every element has an 'id' field!
-            if 'id' not in cfg[dtype][element].keys():
-                msg = ("Element '%s' in data-type '%s' has no field 'id' "
-                       "(a unique identifier), which is necessary for "
-                       "conversion!" % (element, dtype))
-                raise ValueError(msg)
+    these_dtypes = cfg['data_types']
 
     # Now, extract and set metadata
     metadata = dict()
-
-    # Always add bidsify version
-    metadata['toplevel'] = dict(BidsifyVersion=__version__)
-
+    metadata['BidsifyVersion'] = __version__
     if 'metadata' in cfg.keys():
-        metadata['toplevel'].update(cfg['metadata'])
+        metadata.update(cfg['metadata'])
 
     if cfg['options']['spinoza_data']:
         # If data is from Spinoza centre, set some sensible defaults!
@@ -405,7 +390,7 @@ def _check_dtypes(self, cfg, cfg_file):
             cfg['spinoza_metadata'] = yaml.load(f)
 
     # Check config for metadata
-    for dtype in data_types:
+    for dtype in these_dtypes:
 
         if 'metadata' in cfg[dtype].keys():
             # Set specific dtype metadata
@@ -423,6 +408,7 @@ def _check_dtypes(self, cfg, cfg_file):
             cfg['mappings'][mtype] = None
 
     cfg['metadata'] = metadata
+    return cfg
 
 
 def _move_and_rename(cdir, dtype, sub_name, cfg):
@@ -549,22 +535,26 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
     return data_dir
 
 
-def _extract_metadata(data_dir, cfg):
+def _write_metadata(data_dir, cfg):
 
     # Get metadata dict
     metadata, mappings = cfg['metadata'], cfg['mappings']
-
     if 'spinoza_metadata' in cfg.keys():
         spi_md = cfg['spinoza_metadata']
 
     dtype = op.basename(data_dir)
 
     # Start with common metadata ("toplevel")
-    dtype_metadata = copy(metadata['toplevel'])
+    dtype_metadata = copy(metadata)
 
     # If there is dtype-specific metadata, append it
     if metadata.get(dtype, None) is not None:
         dtype_metadata.update(metadata[dtype])
+
+    if 'ses-' in op.basename(op.dirname(data_dir)):
+        ses2append = op.basename(op.dirname(data_dir))
+    else:
+        ses2append = ''
 
     # Now loop over ftypes ('filetypes', e.g. bold, physio, etc.)
     for mtype in mappings.keys():
@@ -583,7 +573,7 @@ def _extract_metadata(data_dir, cfg):
             func_files = glob(op.join(op.dirname(data_dir),
                                       'func', '*_bold.nii.gz'))
 
-            mtype_metadata['IntendedFor'] = ['func/%s' % op.basename(f)
+            mtype_metadata['IntendedFor'] = [op.join(ses2append, 'func', op.basename(f))
                                              for f in func_files]
 
         # Find relevant jsons
@@ -608,56 +598,25 @@ def _extract_metadata(data_dir, cfg):
                             tmp_metadata = tmp_metadata.get(acqtype)
                     this_metadata.update(tmp_metadata)
 
-            if dtype in ['func', 'dwi'] and mtype == 'epi':
-                epi_name = fbase.replace('_epi.json', '_bold.nii.gz')
-                epi_name = epi_name.replace('_epi.json', '_dwi.nii.gz')
-                int_for = epi_name.replace('task-', 'dir-')
-                this_metadata['IntendedFor'] = 'func/%s' % int_for
+            if mtype == 'epi':
 
-            if dtype == 'func' and mtype == 'bold':
-                task_name = fbase.split('task-')[-1].split('_')[0]
+                pardir = op.dirname(op.dirname(this_json))
+                dir_idf = fbase.split('dir-')[1].split('_')[0]
+                acq_idf = fbase.split('acq-')[1].split('_')[0]
+
+                if dir_idf == 'dwi':
+                    cdwi = op.basename(glob(op.join(pardir, 'dwi', '*%s*_dwi.nii.gz' % acq_idf))[0])
+                    int_for = op.join(ses2append, 'dwi', cdwi)
+                else:  # assume bold
+                    cbold = op.basename(glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))[0])
+                    int_for = op.join(ses2append, 'func', cbold)
+                this_metadata['IntendedFor'] = int_for
+
+            if mtype == 'bold':
+                task_name = fbase.split('task-')[1].split('_')[0]
                 this_metadata.update({'TaskName': task_name})
 
             _append_to_json(this_json, this_metadata)
-
-
-def _fix_topups(out_dir):
-    """ Because we treat topups as "bold" files, we need to move them to the
-    fmap directory. Also, fix names to comply with BIDS. """
-    fmap_dir = op.join(out_dir, 'fmap')
-
-    func_epis = glob(op.join(out_dir, 'func', '*_epi.*'))  # both nii.gz/json
-    for f_epi in func_epis:
-
-        base = op.basename(f_epi)
-        task = base.split('task-')[-1].split('_')[0]
-        elems = base.split('_')
-        elems = [e for e in base.split('_') if 'task' not in e]
-        if 'run-' in base:
-            new_name = elems[:-2] + ['dir-%s' % task] + elems[-2:]
-        else:
-            new_name = elems[:-1] + ['dir-%s' % task] + elems[-1:]
-
-        new_name = op.join(fmap_dir, '_'.join(new_name))
-        shutil.move(f_epi, new_name)
-
-    dwi_epis = glob(op.join(out_dir, 'dwi', '*_epi.*'))
-    for d_epi in dwi_epis:
-
-        base = op.basename(d_epi)
-        if 'run-' in base:
-            new_name = elems[:-2] + ['dir-dwi'] + elems[-2:]
-        else:
-            new_name = elems[:-1] + ['dir-dwi'] + elems[-1:]
-        new_name = op.join(fmap_dir, '_'.join(new_name))
-        shutil.move(d_epi, new_name)
-
-    # Check for weird 'ADC' files and remove them
-    [os.remove(f) for f in glob(op.join(out_dir, 'dwi', '*ADC.nii.gz'))]
-
-    # Also, while we're at it, remove bval/bvecs of topups
-    epi_bvals_bvecs = glob(op.join(out_dir, 'fmap', '*_epi.bv[e,a][c,l]'))
-    [os.remove(f) for f in epi_bvals_bvecs]
 
 
 def _deface(f):
@@ -665,11 +624,6 @@ def _deface(f):
 
     _run_cmd(['pydeface', f])  # Run pydeface
     os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
-
-
-def _update_metadata(this_metadata, f, dtype, mtype):
-
-    pass
 
 
 def _extract_sub_nr(sub_stem, sub_name):

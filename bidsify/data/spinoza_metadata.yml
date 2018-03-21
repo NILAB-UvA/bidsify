@@ -5,22 +5,24 @@ func:  # dtype
         SeqSense2Mm3:  # acqtype
             # Standard non-MB sequence
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034545
+            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 2
+            MultibandAccelerationFactor: 3
+            WaterFatShift: 12
+            FlipAngle: 76.10
+            TotalReadoutTime: 0.01347
+
         MB3Sense2Mm3:
             # old MB3 sequence
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034545
+            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
-    epi:  # a.k.a. topup (but 'epi' according to BIDS)
-        SeqSense2Mm3:
-            PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034545
-            SliceEncodingDirection: k
-        MB3Sense2Mm3:
-            PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034545
-            SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 2
+            MultibandAccelerationFactor: 3
+            WaterFatShift: 12  # actually 11.999 - does it matter?
+            FlipAngle: 76.10
+            TotalReadoutTime: 0.01347
 
 fmap:  # dtype
 
@@ -30,12 +32,43 @@ fmap:  # dtype
             EchoTime1: 0.003
             EchoTime2: 0.008
 
-dwi:  # dtype
+    epi:  # a.k.a. topup (but 'epi' according to BIDS)
+        SeqSense2Mm3:
+            PhaseEncodingDirection: j-
+            SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 2
+            WaterFatShift: 12
+            FlipAngle: 76.10
+            TotalReadoutTime: 0.01347
+            EffectiveEchoSpacing: 0.00034538
 
-    dwi:  # mtype
-        SeqSense2Dirs32:  # acqtype
-            PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034545 # not certain about this
-    epi:
-        PhaseEncodingDirection: j-
-        EffectiveEchoSpacing: 0.00034545 # not certain about this
+        MB3Sense2Mm3:
+            PhaseEncodingDirection: j-
+            SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 2
+            MultibandAccelerationFactor: 3
+            WaterFatShift: 12
+            FlipAngle: 76.10
+            TotalReadoutTime: 0.01347
+            EffectiveEchoSpacing: 0.00034538
+
+        SeqSense2Dirs32:
+            PhaseEncodingDirection: j-
+            ParallelReductionFactorInPlane: 2
+            WaterFatShift: 18.933
+            FlipAngle: 90
+            TotalReadoutTime: 0.01899975
+            EffectiveEchoSpacing: 0.00077862
+
+dwi:
+
+    dwi:
+
+        SeqSense2Dirs32:
+            RepetitionTime: 7.386432
+            PhaseEncodingDirection: j-
+            ParallelReductionFactorInPlane: 2
+            WaterFatShift: 18.933
+            FlipAngle: 90
+            TotalReadoutTime: 0.01899975
+            EffectiveEchoSpacing: 0.01899975

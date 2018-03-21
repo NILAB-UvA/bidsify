@@ -3,14 +3,19 @@ options:
     debug: False
     n_cores: -1
     subject_stem: sub
-    deface: True
+    deface: False
     spinoza_data: True
 
 mappings:
     bold: _bold
     T1w: _T1w
     dwi: _dwi
-    physio: _physio
+    physio: _physi
     events: _events
-    phasediff: _B0
+    phasediff: _phasediff
+    magnitude: _magnitude
     epi: _epi
+
+metadata:
+    MagneticFieldStrength: 3
+    ParallelAcquisitionTechnique: SENSE
