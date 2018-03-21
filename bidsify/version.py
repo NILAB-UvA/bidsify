@@ -26,13 +26,13 @@ CLASSIFIERS = ["Development Status :: 3 - Alpha",
                "Topic :: Scientific/Engineering"]
 
 # Description should be a one-liner:
-description = "BidsConverter: Converts your (raw) data to the BIDS-format"
+description = "bidsify: Converts your (raw) data to the BIDS-format"
 
-NAME = "BidsConverter"
+NAME = "bidsify"
 MAINTAINER = "Lukas Snoek"
 MAINTAINER_EMAIL = "lukassnoek@gmail.com"
 DESCRIPTION = description
-URL = "https://github.com/lukassnoek/BidsConverter"
+URL = "https://github.com/spinoza-rec/bidsify"
 DOWNLOAD_URL = ""
 LICENSE = "3-clause BSD"
 AUTHOR = "Lukas Snoek"

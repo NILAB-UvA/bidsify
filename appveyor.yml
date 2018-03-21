@@ -18,7 +18,7 @@ init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %MINICONDA%"
 
 install:
-  - git clone https://github.com/rordenlab/dcm2niix c:\projects\dcm2niix
+  - git clone https://github.com/neurolabusc/dcm2niix c:\projects\dcm2niix
   - mkdir c:\projects\dcm2niix\build
   - cd c:\projects\dcm2niix\build
   - cmake -G "Visual Studio 14 2015 Win64" -DBATCH_VERSION=ON -DUSE_OPENJPEG=ON ..\
@@ -39,4 +39,4 @@ test_script:
   - python download_test_data.py
   - mkdir for_test
   - cd for_test
-  - py.test --pyargs bidsify --cov-report term-missing --cov=bidsify
+  - py.test --cov-report term-missing --cov=bidsify
