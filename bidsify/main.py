@@ -263,8 +263,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         print('Unallocated files for %s:' % sub_name)
         print('\n'.join(unallocated))
 
-        unall_dir = op.join(op.dirname(cfg['options']['out_dir']),
-                            'unallocated', sub_name)
+        if is_sess:
+            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name, sess_name)
+        else:
+            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
         _make_dir(unall_dir)
         for f in unallocated:
             shutil.move(f, unall_dir)
@@ -312,12 +314,12 @@ def _parse_cfg(cfg_file, raw_data_dir):
         cfg['options']['subject_stem'] = 'sub'
 
     if 'out_dir' not in options:
-        out_dir = op.join(raw_data_dir, 'bids_converted')
+        out_dir = op.join(op.dirname(raw_data_dir), 'bids')
         print("Setting out-dir to %s" % out_dir)
         cfg['options']['out_dir'] = out_dir
     else:
         out_dir = cfg['options']['out_dir']
-        cfg['options']['out_dir'] = op.join(raw_data_dir, out_dir)
+        cfg['options']['out_dir'] = op.join(op.dirname(raw_data_dir), out_dir)
 
     if 'spinoza_data' not in options:
         cfg['options']['spinoza_data'] = False
