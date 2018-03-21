@@ -27,7 +27,7 @@ before_install:
   - cd dcm2niix/build
   - cmake ..
   - make
-  - sudo cp dcm2niix/build/bin/dcm2niix /usr/bin
+  - sudo cp bin/dcm2niix /usr/bin
   - travis_retry sudo apt-get install nodejs
   - npm install -g bids-validator
 
