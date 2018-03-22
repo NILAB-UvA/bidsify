@@ -13,7 +13,7 @@ datasets = [op.join(testdata_path, 'PIOP_1'),
 @pytest.mark.parametrize('path_to_data', datasets)
 def test_bidsify(path_to_data):
     """ Tests bidsify """
-    bids_dir = op.join(path_to_data, 'bids_converted')
+    bids_dir = op.join(path_to_data, 'bids')
     if op.isdir(bids_dir):
         rmtree(bids_dir)
 
