@@ -33,7 +33,7 @@ before_install:
 
 install:
 - travis_retry pip install $PIP_DEPS
-- cd ~/bidsify
+- cd $TRAVIS_BUILD_DIR
 - travis_retry pip install -r requirements.txt
 - travis_retry pip install -e .
 
