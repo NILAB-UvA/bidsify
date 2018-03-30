@@ -1,26 +1,41 @@
-bidsify - converts your (raw) data to the BIDS-format
+``bidsify`` - converts your (raw) data to the BIDS-format
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
 .. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
+.. image:: https://coveralls.io/repos/github/lukassnoek/bidsify/badge.svg?branch=refactor
+    :target: https://coveralls.io/github/lukassnoek/bidsify?branch=refactor
+
+.. image:: https://travis-ci.org/lukassnoek/bidsify.svg?branch=refactor
+    :target: https://travis-ci.org/lukassnoek/bidsify
+
+.. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
+    :target: https://ci.appveyor.com/project/lukassnoek/bidsify
+
+.. image:: https://img.shields.io/badge/python-2.7-blue.svg
+    :target: https://www.python.org/download/releases/2.7
+
+.. image:: https://img.shields.io/badge/python-3.5-blue.svg
+    :target: https://www.python.org/downloads/release/python-350
+
 This package offers a tool to convert your raw (f)MRI data to the
-"Brain Imaging Data Structuce" (BIDS_) format. Using only a 
-simple json config-file, it renames, reformats, and restructures 
-your files such that it fits the BIDS naming scheme and conforms 
+"Brain Imaging Data Structuce" (BIDS_) format. Using only a
+simple json config-file, it renames, reformats, and restructures
+your files such that it fits the BIDS naming scheme and conforms
 to file-formats specified by BIDS. This tool has been used to
 successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
 
-`Bidsify` is still very much in development, so there are probably still some bugs for data
+``Bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
-in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request 
+in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request
 with your proposed solution!
 
 **NOTE: WE'RE WORKING ON A COMPLETE REFACTORING OF THE PACKAGE WHICH INCLUDES (AMONG OTHER THINGS) DEFACING OF STRUCTURAL IMAGES AND DOCKER INTEGRATION! CHECK OUT THE `refactor` BRANCH TO GET A SNEAK PEAK!**
 
 Features
 --------
-So far, `bidsify` is able to do the following:
+So far, ``bidsify`` is able to do the following:
 
 - Rename raw files to the format specified by BIDS (using the information in the config.json)
 - Convert raw Philips PAR/REC files and DICOM files (experimental; not fully tested) to nifti.gz format
@@ -39,7 +54,7 @@ It does not support (yet):
 
 The config.json file
 --------------------
-The BidsConverter only needs a ``config.json`` file, which contains
+``bidsify`` only needs a ``config.json`` file, which contains
 information that is used to rename and convert the raw files. An
 example of a complete ``config.json`` file can be found here_.
 
@@ -61,6 +76,7 @@ is the `"options"` section. An example of this section could be:
         "subject_stem": "sub",
         "out_dir": "bids_converted",
         "spinoza_data": 0
+    }
   }
 
 No options *need* to be set explicitly as they all have sensible defaults.
@@ -79,11 +95,11 @@ Note: when the `"spinoza_data"` attribute is set to 1 (True), some default metad
 ~~~~~~~~~~
 The BIDS-format specifies the naming and format of several types of MRI(-related) filetypes.
 These filetypes have specific suffixes, which are appended to the filenames in the renaming
-process handled by the BidsConverter. The `"mappings"` section in the config is meant to
-tell the BidsConverter what filetype can be identified by which "key". Thus, the mappings
-section consists of `"filetype": "identifier"` pairs. Basically, if BIDS requires a 
+process handled by ``bidsify``. The `"mappings"` section in the config is meant to
+tell ``bidsify`` what filetype can be identified by which "key". Thus, the mappings
+section consists of `"filetype": "identifier"` pairs. Basically, if BIDS requires a
 specific suffix for a filetype, you need to specify that here. For example, a standard
-dataset with several BOLD-fMRI files, a T1, and physiological recordings could have 
+dataset with several BOLD-fMRI files, a T1, and physiological recordings could have
 a mappings section like this:
 
 .. code-block:: json
@@ -114,7 +130,7 @@ Also, check the BIDS-specification for all filetypes supported by the format.
 ~~~~~~~~~~
 At the same (hierarchical) level as the "mappings" and "options" sections, a section
 with the name "metadata" can be optionally specified. This attribute may contain an
-arbitrary amount of attribute-value pairs which will be appended to **each** 
+arbitrary amount of attribute-value pairs which will be appended to **each**
 JSON-metadata file during the conversion. These are thus "dataset-general" metadata
 parameters. For example, you could specify the data of conversion here, if you'd like:
 
@@ -142,7 +158,7 @@ After the "options", "mappings", and (optionally) the "metadata" sections,
 the specifications for the four general "BIDS-datatypes" - "func", "anat", "dwi", and "fmap" -
 are listed in separate sections.
 
-Each section, like "func", can contain multiple sub-sections referring to different scans 
+Each section, like "func", can contain multiple sub-sections referring to different scans
 for that datatype. For example, you could have two different functional runs
 with each a different task ("workingmemory" and "nback"). In that case, the "func"
 section could look like:
@@ -170,7 +186,7 @@ section could look like:
          "task": "nback"
       }
 
-    } 
+    }
 
   }
 
@@ -180,12 +196,12 @@ key, which is used to identify the files that belong to this particular task. An
 besides the "id" key-value pair are append to the renamed filename along the BIDS-format.
 
 For example, suppose you have a raw file "``sub-001_wmtask.PAR``" (PAR-files are Philips specific "raw" MRI-files).
-With the above config-file, this file will be renamed into "``sub-001_task-workingmemory_bold.nii.gz``". 
+With the above config-file, this file will be renamed into "``sub-001_task-workingmemory_bold.nii.gz``".
 
 As discussed, *any* key-value pair besides "id" will be appended (in the format "key-value") to the
 filename during the renaming-process. Imagine, for example, that you have only one task - "nback" - but
 you acquired four runs of it per subject, of which the first two were acquired with a sequential acquisition protocol,
-but the last two with a multiband protocol (e.g. if you'd want to do some methodological comparison). 
+but the last two with a multiband protocol (e.g. if you'd want to do some methodological comparison).
 
 The config-file should, in that case, look like:
 
@@ -230,11 +246,11 @@ The config-file should, in that case, look like:
          "acq": "multiband"
       }
 
-    } 
+    }
 
   }
 
-Bidsify will then create four files (assuming that they can be "found" using their corresponding "ids"):
+``bidsify`` will then create four files (assuming that they can be "found" using their corresponding "ids"):
 
 - ``sub-001_task-nback_run-1_acq-sequential_bold.nii.gz``
 - ``sub-001_task-nback_run-2_acq-sequential_bold.nii.gz``
@@ -271,12 +287,12 @@ each datatype-section (``func``, ``anat``, ``fmap``, and ``dwi``) also may inclu
 ``metadata`` section, similar to the "toplevel" ``metadata`` section. This field may
 include key-value pairs that will be appended to *each* JSON-file within that
 datatype. This is especially nice if you'd want to add metadata that is needed for
-specific preprocessing/analysis pipelines that are based on the BIDS-format. 
+specific preprocessing/analysis pipelines that are based on the BIDS-format.
 For example, the `fmriprep <fmriprep.readthedocs.io>`_ package provides
 preprocessing pipelines for BIDS-datasets, but sometimes need specific metadata.
 For example, for each BOLD-fMRI file, it needs a field ``EffectiveEchoSpacing`` in the
 corresponding JSON-file, and for B0-files (one phasediff, one magnitude image) it needs
-the fields ``EchoTime1`` and ``EchoTime2``. To include those metadata fields in the 
+the fields ``EchoTime1`` and ``EchoTime2``. To include those metadata fields in the
 corresponding JSON-files, just include a ``metadata`` field under the appropriate
 datatype section. For example, to do so for the previous examples:
 
@@ -286,44 +302,44 @@ datatype section. For example, to do so for the previous examples:
     "func": {
 
       "metadata": {
-        
+
          "EffectiveEchoSpacing": 0.00365,
          "PhaseEncodingDirection": "j"
-      
+
       },
 
       "nback": {
-        
+
          "id": "nback",
          "task": "nback"
-      
+
       }
 
     },
 
     "fmap": {
-         
+
       "metadata": {
-        
+
          "EchoTime1": 0.003,
          "EchoTime2": 0.008
-      
+
       },
 
       "B0": {
 
          "id": "B0"
-      
+
       }
-    
+
     }
 
   }
 
 
-Usage of bidsify
+Usage of ``bidsify``
 ----------------------
-After installing `bidsify` (see next section), the command ``convert2bids``
+After installing ``bidsify`` (see next section), the command ``bidsify``
 should be available in your terminal. It takes two (named) arguments:
 
 - -d ("directory"): path to the directory with the raw data that you want to convert
@@ -333,19 +349,19 @@ If no arguments are given, the "directory" is assumed to be the current working 
 and the config-file is assumed to be named "config.json" and to be located in the current
 working directory.
 
-Importantly, BidsConverter assumes that the directory with raw data is organized as follows
+Importantly, ``bidsify`` assumes that the directory with raw data is organized as follows
 (for the simple case of one BOLD run and one T1):
 
 - sub-01
 
-  - ses-01 
+  - ses-01
 
     - boldrun1.PAR
     - boldrun1.REC
     - T1.PAR
     - T1.REC
 
-  - ses-02 
+  - ses-02
 
     - boldrun1.PAR
     - boldrun1.REC
@@ -354,14 +370,14 @@ Importantly, BidsConverter assumes that the directory with raw data is organized
 
 - sub-02
 
-  - ses-01 
+  - ses-01
 
     - boldrun1.PAR
     - boldrun1.REC
     - T1.PAR
     - T1.REC
 
-  - ses-02 
+  - ses-02
 
     - boldrun1.PAR
     - boldrun1.REC
@@ -369,26 +385,26 @@ Importantly, BidsConverter assumes that the directory with raw data is organized
     - T1.REC
 
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
-a session-directory. **Note**: the session directory **must** be named "ses-<something>". 
+a session-directory. **Note**: the session directory **must** be named "ses-<something>".
 Also, instead of separate \*.PAR and \*.REC files, you can also have a single or multiple DICOM
 files instead. (DICOM conversion has, however, not been thoroughly tested ...)
 
-Installing BidsConverter & dependencies
+Installing ``bidsify`` & dependencies
 ---------------------------------------
-For now, it can only be installed from Github (no PyPI package yet), either by cloning 
+For now, it can only be installed from Github (no PyPI package yet), either by cloning
 this repository directory (and then ``python setup.py install``) or installing it using ``pip``::
 
     $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
 
-In terms of dependencies, `bidsify` currently works with the
-`dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which 
+In terms of dependencies: ``bidsify`` currently only works with the
+`dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which
 can be installed on Linux-systems using neurodebian::
 
     $ sudo apt install dcm2niix
 
 For other platforms (Mac, Windows), check out the dcm2niix `Github page <https://github.com/rordenlab/dcm2niix/releases>`_.
 
-Apart from dcm2niix, `bidsify` depends on the following Python packages:
+Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
 
 - nibabel
 - scipy

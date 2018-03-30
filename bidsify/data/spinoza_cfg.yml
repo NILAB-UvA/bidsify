@@ -1,0 +1,22 @@
+options:
+    mri_ext: PAR  # may change to enh DICOM
+    debug: False
+    n_cores: -1
+    subject_stem: sub
+    deface: True
+    spinoza_data: True
+    out_dir: 'bids'
+
+mappings:
+    bold: _bold
+    T1w: _T1w
+    dwi: _dwi
+    physio: _physi
+    events: _events
+    phasediff: _phasediff
+    magnitude: _magnitude
+    epi: _epi
+
+metadata:
+    MagneticFieldStrength: 3
+    ParallelAcquisitionTechnique: SENSE

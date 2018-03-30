@@ -1,0 +1,22 @@
+bidsconverter/data/PIOP2
+bidsconverter/data/Upgrade
+
+# python cache
+__pycache__/**/*
+__pycache__
+*.pyc
+
+# python distribution
+build/**/*
+build
+dist/**/*
+dist
+BidsConverter.egg-info/**/*
+BidsConverter.egg-info
+.eggs/**/*
+.eggs
+
+# git
+.gitignore
+.git/**/*
+.git

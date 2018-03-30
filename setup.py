@@ -1,40 +1,43 @@
-import bidsconverter
+import os
 from setuptools import setup, find_packages
+PACKAGES = find_packages()
 
-REQUIREMENTS = [
-    'scipy>=0.17',
-    'numpy>=1.10',
-    'pandas>=0.17',
-    'nibabel>=2.0',
-    'joblib'
-]
+# Get version and release info, which is all stored in shablona/version.py
+ver_file = os.path.join('bidsify', 'version.py')
 
-VERSION = bidsconverter.setup_BIDS.__version__
+with open(ver_file) as f:
+    exec(f.read())
 
-def readme():
-    with open('README.rst') as f:
-        return f.read()
+# Long description will go up on the pypi page
+with open('README.rst') as f:
+    LONG_DESCRIPTION = f.read()
 
-setup(
-    name='BidsConverter',
-    version=VERSION,
-    description='Tool to convert raw data sets to BIDS-compatible data sets.',
-    long_description=readme(),
-    classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Science/Research',
-        'Operating System :: POSIX :: Linux',
-        'Operating System :: MacOS :: MacOS X',
-        'Programming Language :: Python :: 2.7',
-        'Topic :: Scientific/Engineering :: Bio-Informatics'],
-    keywords="BIDS fMRI MRI reproducibility OpenfMRI",
-    url='https://github.com/lukassnoek/BidsConverter',
-    author='Lukas Snoek',
-    author_email='lukassnoek@gmail.com',
-    license='MIT',
-    platforms=['Linux', 'Mac OSX'],
-    packages=find_packages(),
-    install_requires=REQUIREMENTS,
-    scripts=['bin/convert2bids'],
-    include_package_data=True,
-    zip_safe=False)
+with open('requirements.txt') as f:
+    REQUIRES = f.readlines()
+
+opts = dict(name=NAME,
+            maintainer=MAINTAINER,
+            maintainer_email=MAINTAINER_EMAIL,
+            description=DESCRIPTION,
+            long_description=LONG_DESCRIPTION,
+            url=URL,
+            download_url=DOWNLOAD_URL,
+            license=LICENSE,
+            classifiers=CLASSIFIERS,
+            author=AUTHOR,
+            author_email=AUTHOR_EMAIL,
+            platforms=PLATFORMS,
+            version=VERSION,
+            packages=PACKAGES,
+            package_data=PACKAGE_DATA,
+            install_requires=REQUIRES,
+            requires=REQUIRES,
+            entry_points={
+                'console_scripts': [
+                    'bidsify = bidsify.main:run_cmd',
+                    ]
+                }
+            )
+
+if __name__ == '__main__':
+    setup(**opts)

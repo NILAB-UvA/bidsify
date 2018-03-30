@@ -1,0 +1,11 @@
+{
+    "Name": "Put the name of your experiment here",
+    "BIDSVersion": "1.0.2",
+    "License": "License under which your data is distributed",
+    "Authors": ["Author1", "Author2", "Author3", "etc."],
+    "Acknowledgements": "Put your acknowledgements here",
+    "HowToAcknowledge": "Describe how you'd like to be acknowledged here",
+    "Funding": "Put your funding sources here",
+    "ReferencesAndLinks": ["e.g. data-paper", "(methods-)paper", "etc."],
+    "DatasetDOI": "DOI of dataset (if there is one)"
+}
