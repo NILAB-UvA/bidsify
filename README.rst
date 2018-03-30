@@ -4,14 +4,14 @@
 .. _BIDS: http://bids.neuroimaging.io/
 .. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
-.. image:: https://coveralls.io/repos/github/lukassnoek/bidsify/badge.svg?branch=refactor
-    :target: https://coveralls.io/github/lukassnoek/bidsify?branch=refactor
+.. image:: https://coveralls.io/repos/github/spinoza-rec/bidsify/badge.svg?branch=refactor
+    :target: https://coveralls.io/github/spinoza-rec/bidsify?branch=refactor
 
-.. image:: https://travis-ci.org/lukassnoek/bidsify.svg?branch=refactor
-    :target: https://travis-ci.org/lukassnoek/bidsify
+.. image:: https://travis-ci.org/spinoza-rec/bidsify.svg?branch=refactor
+    :target: https://travis-ci.org/spinoza-rec/bidsify
 
 .. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
-    :target: https://ci.appveyor.com/project/lukassnoek/bidsify
+    :target: https://ci.appveyor.com/project/spinoza-rec/bidsify
 
 .. image:: https://img.shields.io/badge/python-2.7-blue.svg
     :target: https://www.python.org/download/releases/2.7
@@ -26,12 +26,10 @@ your files such that it fits the BIDS naming scheme and conforms
 to file-formats specified by BIDS. This tool has been used to
 successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
 
-``Bidsify`` is still very much in development, so there are probably still some bugs for data
+``bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
 in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request
 with your proposed solution!
-
-**NOTE: WE'RE WORKING ON A COMPLETE REFACTORING OF THE PACKAGE WHICH INCLUDES (AMONG OTHER THINGS) DEFACING OF STRUCTURAL IMAGES AND DOCKER INTEGRATION! CHECK OUT THE `refactor` BRANCH TO GET A SNEAK PEAK!**
 
 Features
 --------
