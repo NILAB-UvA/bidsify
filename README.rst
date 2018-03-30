@@ -13,9 +13,6 @@
 .. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
     :target: https://ci.appveyor.com/project/spinoza-rec/bidsify
 
-.. image:: https://img.shields.io/badge/python-2.7-blue.svg
-    :target: https://www.python.org/download/releases/2.7
-
 .. image:: https://img.shields.io/badge/python-3.5-blue.svg
     :target: https://www.python.org/downloads/release/python-350
 
