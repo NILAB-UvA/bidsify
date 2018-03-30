@@ -126,12 +126,14 @@ def bidsify(cfg_path, directory, validate):
            outputs of neuroimaging experiments. Scientific Data, 3, 160044.
     """
 
+    # First, parse the config file
     cfg = _parse_cfg(cfg_path, directory)
     cfg['orig_cfg_path'] = cfg_path
 
     if cfg['options']['debug']:
         logging.basicConfig(level=logging.DEBUG)
 
+    # Check whether everything is available
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
         install dcm2niix from neurodebian (Linux users) or download dcm2niix
@@ -164,7 +166,8 @@ def bidsify(cfg_path, directory, validate):
         raise ValueError(msg)
 
     # Process directories of each subject
-    [_process_directory(sub_dir, out_dir, cfg) for sub_dir in sub_dirs]
+    for sub_dir in sub_dirs:
+        _process_directory(sub_dir, out_dir, cfg)
 
     # Write example description_dataset.json to disk
     desc_json = op.join(op.dirname(__file__), 'data',
@@ -229,47 +232,40 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     already_exists = op.isdir(this_out_dir)
     if already_exists:
         print('%s already converted - skipping ...' % this_out_dir)
-        return
+        return None
 
     # Make dir and copy all files to this dir
     _make_dir(this_out_dir)
-    [shutil.copy(f, this_out_dir) for f in glob(op.join(cdir, '*'))]
+    all_files = sorted(glob(op.join(cdir, '*')))
+    for f in all_files:
+        dst = os.path.join(this_out_dir, op.basename(f))
+        if os.path.isdir(f):
+            shutil.copytree(f, dst)
+        else:
+            shutil.copy2(f, dst)
 
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
+
+    # Remove weird ADC file(s); no clue what they represent ...
     [os.remove(f) for f in glob(op.join(this_out_dir, '*ADC*.nii.gz'))]
 
-    # If spinoza-data (there is no specific config), try to infer elements
+    # If spinoza-data (there is no specific config file), try to infer elements
     # from converted data
     if op.basename(cfg['orig_cfg_path']) == 'spinoza_cfg.yml':
         dtype_elements = _infer_dtype_elements(this_out_dir)
         cfg.update(dtype_elements)
 
-    data_types = [c for c in cfg.keys() if c in DTYPES]
-    cfg['data_types'] = data_types
-    _add_metadata(cfg)
+    # Check which datatypes (dtypes) are available (func, anat, fmap, dwi)
+    cfg['data_types'] = [c for c in cfg.keys() if c in DTYPES]
+    _extract_metadata_from_cfg(cfg)
 
     # Rename and move stuff
-    data_dirs = [_move_and_rename(this_out_dir, dtype, sub_name, cfg)
-                 for dtype in cfg['data_types']]
-    data_dirs = [ddir for ddir in data_dirs if ddir is not None]
-
-    # Also, while we're at it, remove bval/bvecs of topups
-    epi_bvals_bvecs = glob(op.join(this_out_dir, 'fmap', '*_epi.bv[e,a][c,l]'))
-    [os.remove(f) for f in epi_bvals_bvecs]
-
-    unallocated = [f for f in glob(op.join(this_out_dir, '*')) if op.isfile(f)]
-    if unallocated:
-        print('Unallocated files for %s:' % sub_name)
-        print('\n'.join(unallocated))
-
-        if is_sess:
-            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name, sess_name)
-        else:
-            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
-        _make_dir(unall_dir)
-        for f in unallocated:
-            shutil.move(f, unall_dir)
+    data_dirs = []
+    for dtype in cfg['data_types']:
+        ddir = _rename(this_out_dir, dtype, sub_name, cfg)
+        if ddir is not None:
+            data_dirs.append(ddir)
 
     # 2. Transform PHYS (if any)
     if cfg['mappings']['physio'] is not None:
@@ -278,10 +274,30 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         phys = sorted(glob(op.join(this_out_dir, '*', '*%s*' % idf)))
         Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
-    # ... and extract some extra meta-data
-    [_write_metadata(data_dir, cfg) for data_dir in data_dirs]
+    # Also, while we're at it, remove bval/bvecs of dwi topups
+    epi_bvals_bvecs = glob(op.join(this_out_dir, 'fmap', '*_epi.bv[e,a][c,l]'))
+    [os.remove(f) for f in epi_bvals_bvecs]
 
-    # Deface
+    # Let's move stuff that's never allocated to a dtype to the unall dir
+    unallocated = [f for f in glob(op.join(this_out_dir, '*')) if op.isfile(f)]
+    if unallocated:
+        print('Unallocated files for %s:' % sub_name)
+        print('\n'.join(unallocated))
+
+        if is_sess:
+            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name,
+                                sess_name)
+        else:
+            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
+        _make_dir(unall_dir)
+        for f in unallocated:
+            shutil.move(f, unall_dir)
+
+    # ... and extract some extra meta-data
+    for data_dir in data_dirs:
+        _add_missing_BIDS_metadata(data_dir, cfg)
+
+    # Deface the anatomical data
     if options['deface']:
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
         [_deface(f) for f in anat_files]
@@ -373,7 +389,7 @@ def _infer_dtype_elements(directory):
     return dtype_elements
 
 
-def _add_metadata(cfg):
+def _extract_metadata_from_cfg(cfg):
 
     these_dtypes = cfg['data_types']
 
@@ -396,11 +412,17 @@ def _add_metadata(cfg):
         if 'metadata' in cfg[dtype].keys():
             # Set specific dtype metadata
             metadata[dtype] = cfg[dtype]['metadata']
+            del cfg[dtype]['metadata']
 
         for element in cfg[dtype].keys():
 
             if 'metadata' in cfg[dtype][element].keys():
-                metadata[dtype][element] = cfg[dtype][element]['metadata']
+
+                if metadata.get(dtype, None) is not None:
+                    metadata[dtype][element] = cfg[dtype][element]['metadata']
+                else:
+                    metadata.update({dtype: {element: cfg[dtype][element]['metadata']}})
+                del cfg[dtype][element]['metadata']
 
     for mtype in MTYPE_ORDERS.keys():
 
@@ -412,7 +434,7 @@ def _add_metadata(cfg):
     return cfg
 
 
-def _move_and_rename(cdir, dtype, sub_name, cfg):
+def _rename(cdir, dtype, sub_name, cfg):
     """ Does the actual work of processing/renaming/conversion. """
 
     # Define out-Directory
@@ -430,10 +452,6 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
 
     # Loop over contents of dtype (e.g. func)
     for elem in cfg[dtype].keys():
-
-        if elem == 'metadata':
-            # Skip metadata
-            continue
 
         # Extract "key-value" pairs (info about element)
         kv_pairs = deepcopy(cfg[dtype][elem])
@@ -536,7 +554,7 @@ def _move_and_rename(cdir, dtype, sub_name, cfg):
     return data_dir
 
 
-def _write_metadata(data_dir, cfg):
+def _add_missing_BIDS_metadata(data_dir, cfg):
 
     # Get metadata dict
     metadata, mappings = cfg['metadata'], cfg['mappings']
@@ -606,10 +624,21 @@ def _write_metadata(data_dir, cfg):
                 acq_idf = fbase.split('acq-')[1].split('_')[0]
 
                 if dir_idf == 'dwi':
-                    cdwi = op.basename(glob(op.join(pardir, 'dwi', '*%s*_dwi.nii.gz' % acq_idf))[0])
-                    int_for = op.join(ses2append, 'dwi', cdwi)
+
+                    cdwi = glob(op.join(pardir, 'dwi', '*%s*_dwi.nii.gz' % acq_idf))
+                    if not cdwi:
+                        warnings.warn("Could not find DWI-file corresponding to topup (%s)!" % this_json)
+                        int_for = 'Could not find corresponding file; add this yourself!'
+                    else:
+                        cdwi = op.basename(cdwi[0])
+                        int_for = op.join(ses2append, 'dwi', cdwi)
                 else:  # assume bold
-                    cbold = op.basename(glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))[0])
+                    cbold = glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))
+                    if not cbold:
+                        warnings.warn("Cound not find bold-file corresponding to topup (%s)!" % this_json)
+                        int_for = 'Could not find corresponding file; add this yourself!'
+
+                    cbold = op.basename(cbold[0])
                     int_for = op.join(ses2append, 'func', cbold)
                 this_metadata['IntendedFor'] = int_for
 
