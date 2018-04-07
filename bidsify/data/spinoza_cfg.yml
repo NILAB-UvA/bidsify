@@ -5,13 +5,13 @@ options:
     subject_stem: sub
     deface: True
     spinoza_data: True
-    out_dir: 'bids'
+    out_dir: bids
 
 mappings:
     bold: _bold
     T1w: _T1w
     dwi: _dwi
-    physio: _physi
+    physio: _physio
     events: _events
     phasediff: _phasediff
     magnitude: _magnitude

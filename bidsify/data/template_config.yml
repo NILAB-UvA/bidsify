@@ -1,0 +1,91 @@
+# The 'options' field sets global configurations
+options:
+    # File format of (raw) MRI-data
+    mri_ext: PAR  # alternative: DICOM
+
+    # Should we run bidsify in debug mode (higher verbosity, no gzipping)
+    debug: False  # alternative: True
+
+    # How many cores should we use? (-1 = all available)
+    n_cores: 1  # alternative [2, 3, 4, ... , -1]
+
+    # What is the "subject stem" (referring to subject-directory names)
+    subject_stem: sub  # alternative: any alphanumberic string
+
+    # Should we 'deface' (remove facial features) the anatomical scans?
+    deface: True  # alternative: False
+
+    # Is the data from the Spinoza Centre (REC, Amsterdam)?
+    spinoza_data: False  # alternative: False
+
+    # How should we name the output directory (with BIDS data)?
+    out_dir: bids  # alternative: any valid alphanumberic string
+
+# The 'mappings' field defines mappings of identifiers to filetypes
+mappings:
+    bold: _bold  # for BOLD-fMRI files
+    T1w: _T1w  # for T1-weighted anatomical files
+    T2w: _T2w  # for T2-weighted anatomical files
+    dwi: _dwi  # for diffusion-weighted files
+    physio: _physio  # for physiology (cardiac/respiratory) files
+    events: _events  # for event/behavioral (log) files
+    phasediff: _phasediff  # for phase-difference (B0) files
+    magnitude: _magnitude  # for magnitude (B0) files
+    epi: _epi  # for 'topup' files
+
+# The 'metadata' field (optionally!) defines metadata that should be included in
+# each metadata file
+metadata:
+    MagneticFieldStrength: 3
+    ParallelAcquisitionTechnique: SENSE
+
+func:
+
+    metadata:
+        PhaseEncodingDirection: j
+
+    nback_run1_acq_seq:
+        id: nback-run1_noMB
+        task: nback
+        acq: seq
+        run: 1
+
+    nback_run2_acq_seq:
+        id: nback-run2_noMB
+        task: nback
+        acq: seq
+        run: 2
+
+    nback_run1_acq_MB:
+        id: nback-run2_MB
+        task: nback
+        acq: MB3
+        run: 1
+
+    nback_run2_acq_MB:
+        id: nback-run2_MB
+        task: nback
+        acq: MB3
+        run: 2
+
+    mapper:
+        id: func_localizer
+        task: localizer
+        acq: seq
+
+anat:
+    first_T1:
+        id: T1_nr1
+
+    second_T2:
+        id: T1_nr2
+
+fmap:
+    B0_fieldmap:
+        id: B0
+
+dwi:
+    first_DWI:
+        id: dwi1
+    second_DWI:
+        id: dwi2

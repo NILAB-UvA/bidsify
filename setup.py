@@ -34,7 +34,8 @@ opts = dict(name=NAME,
             requires=REQUIRES,
             entry_points={
                 'console_scripts': [
-                    'bidsify = bidsify.main:run_cmd',
+                    'bidsify = bidsify.cmd_tools:run_bidsify_from_cmd',
+                    'create_template_config = bidsify.cmd_tools:create_template_config'
                     ]
                 }
             )
