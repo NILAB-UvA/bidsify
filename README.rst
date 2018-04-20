@@ -4,17 +4,17 @@
 .. _BIDS: http://bids.neuroimaging.io/
 .. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
-.. image:: https://coveralls.io/repos/github/spinoza-rec/bidsify/badge.svg?branch=refactor
-    :target: https://coveralls.io/github/spinoza-rec/bidsify?branch=refactor
-
-.. image:: https://travis-ci.org/spinoza-rec/bidsify.svg?branch=refactor
+.. image:: https://travis-ci.org/spinoza-rec/bidsify.svg?branch=master
     :target: https://travis-ci.org/spinoza-rec/bidsify
 
-.. image:: https://ci.appveyor.com/api/projects/status/g3y6ds5d0f2fhxer/branch/refactor?svg=true
-    :target: https://ci.appveyor.com/project/spinoza-rec/bidsify
+.. image:: https://ci.appveyor.com/api/projects/status/d9a7bjjqg204kofm?svg=true
+    :target: https://ci.appveyor.com/project/lukassnoek/bidsify
 
-.. image:: https://img.shields.io/badge/python-3.5-blue.svg
-    :target: https://www.python.org/downloads/release/python-350
+.. image:: https://coveralls.io/repos/github/spinoza-rec/bidsify/badge.svg?branch=master
+    :target: https://coveralls.io/github/spinoza-rec/bidsify?branch=master
+
+.. image:: https://img.shields.io/badge/python-3.6-blue.svg
+    :target: https://www.python.org/downloads/release/python-360
 
 This package offers a tool to convert your raw (f)MRI data to the
 "Brain Imaging Data Structuce" (BIDS_) format. Using only a

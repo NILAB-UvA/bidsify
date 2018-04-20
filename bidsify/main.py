@@ -252,7 +252,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # If spinoza-data (there is no specific config file), try to infer elements
     # from converted data
-    if op.basename(cfg['orig_cfg_path']) == 'spinoza_cfg.yml':
+    if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
         dtype_elements = _infer_dtype_elements(this_out_dir)
         cfg.update(dtype_elements)
 
@@ -263,6 +263,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # Rename and move stuff
     data_dirs = []
     for dtype in cfg['data_types']:
+        print("NAME: %s" % sub_name)
         ddir = _rename(this_out_dir, dtype, sub_name, cfg)
         if ddir is not None:
             data_dirs.append(ddir)
@@ -371,6 +372,10 @@ def _infer_dtype_elements(directory):
                 info = op.basename(f).split('.')[0].split('_')
                 info = [s for s in info if 'sub' not in s]
                 info = [s for s in info if len(s.split('-')) > 1]
+
+                # Remove everything that is not allowed for this mtype
+                info = [s for s in info if s.split('-')[0] in MTYPE_ORDERS[mtype].keys()]
+
                 info_dict = {s.split('-')[0]: s.split('-')[1] for s in info}
                 info_dict['id'] = '_'.join(info)
 
@@ -463,7 +468,6 @@ def _rename(cdir, dtype, sub_name, cfg):
         del kv_pairs['id']
 
         common_kv_pairs = {sub_name.split('-')[0]: sub_name.split('-')[1]}
-
         # Add session-id pair to name if there are sessions!
         if 'ses-' in op.basename(cdir):
             sess_id = op.basename(cdir).split('ses-')[-1]
@@ -536,6 +540,7 @@ def _rename(cdir, dtype, sub_name, cfg):
             clean_exts = '.'.join([e for e in exts if e in ALLOWED_EXTS])
 
             full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
+            print(full_name)
             full_name = op.join(data_dir, full_name)
             if mtype == 'bold':
                 if 'task-' not in op.basename(full_name):
@@ -549,6 +554,7 @@ def _rename(cdir, dtype, sub_name, cfg):
 
             if not op.isfile(full_name):
                 # only do it if it isn't already done
+                print("Moving %s to %s" % (f, full_name))
                 shutil.move(f, full_name)
 
     return data_dir
