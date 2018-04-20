@@ -6,9 +6,10 @@ from bidsify import bidsify
 
 data_path = op.join(op.dirname(op.dirname(op.abspath(__file__))), 'data')
 testdata_path = op.join(data_path, 'test_data')
-datasets = [op.join(testdata_path, 'PIOP_1_parrec', 'raw'),
+datasets = [op.join(testdata_path, 'PIOP_1', 'raw'),
             op.join(testdata_path, 'Upgrade_2017', 'raw'),
-            op.join(testdata_path, 'PIOP_2_enhDICOM', 'raw')]
+            #op.join(testdata_path, 'testBidsify', 'raw'),
+            op.join(testdata_path, 'SharedStates', 'raw')]
 
 
 @pytest.mark.parametrize('path_to_data', datasets)
