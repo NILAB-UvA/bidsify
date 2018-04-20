@@ -263,7 +263,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # Rename and move stuff
     data_dirs = []
     for dtype in cfg['data_types']:
-        print("NAME: %s" % sub_name)
         ddir = _rename(this_out_dir, dtype, sub_name, cfg)
         if ddir is not None:
             data_dirs.append(ddir)
@@ -533,6 +532,9 @@ def _rename(cdir, dtype, sub_name, cfg):
             ordered = sorted(zip(these_kv_pairs.keys(),
                                  these_kv_pairs.values()),
                              key=lambda x: this_order[x[0]])
+
+            # Convert all values to strings
+            ordered = [[str(s[0]), str(s[1])] for s in ordered]
             kv_string = '_'.join(['-'.join(s) for s in ordered])
 
             # Create full name as common_name + unique filetype + original ext
@@ -540,7 +542,6 @@ def _rename(cdir, dtype, sub_name, cfg):
             clean_exts = '.'.join([e for e in exts if e in ALLOWED_EXTS])
 
             full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
-            print(full_name)
             full_name = op.join(data_dir, full_name)
             if mtype == 'bold':
                 if 'task-' not in op.basename(full_name):
@@ -554,7 +555,6 @@ def _rename(cdir, dtype, sub_name, cfg):
 
             if not op.isfile(full_name):
                 # only do it if it isn't already done
-                print("Moving %s to %s" % (f, full_name))
                 shutil.move(f, full_name)
 
     return data_dir
@@ -609,6 +609,8 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
             fbase = op.basename(this_json)
             if 'acq' in fbase:
                 acqtype = fbase.split('acq-')[-1].split('_')[0]
+            else:
+                acqtype = None
 
             # this_metadata refers to metadata meant for current json
             this_metadata = copy(mtype_metadata)
