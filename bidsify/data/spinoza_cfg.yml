@@ -20,3 +20,6 @@ mappings:
 metadata:
     MagneticFieldStrength: 3
     ParallelAcquisitionTechnique: SENSE
+    BIDSVersion: '1.1.0'
+    InstitutionName: Spinoza Centre for Neuroimaging, location REC
+    
