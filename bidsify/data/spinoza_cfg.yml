@@ -11,11 +11,11 @@ mappings:
     bold: _bold
     T1w: _T1w
     dwi: _dwi
-    physio: _physi
+    physio: _physio
     events: _events
     phasediff: _phasediff
     magnitude: _magnitude
-    epi: _epi
+    epi: _topup
 
 metadata:
     MagneticFieldStrength: 3
