@@ -16,10 +16,11 @@ mappings:
     phasediff: _phasediff
     magnitude: _magnitude
     epi: _topup
+    T2w: _T2w
+    FLAIR: _FLAIR
 
 metadata:
     MagneticFieldStrength: 3
     ParallelAcquisitionTechnique: SENSE
     BIDSVersion: '1.1.0'
     InstitutionName: Spinoza Centre for Neuroimaging, location REC
-    

@@ -1,22 +1,26 @@
 options:
-    mri_ext: DICOM  # may change to enh DICOM
+    mri_ext: DICOM
     debug: False
     n_cores: -1
     subject_stem: sub
     deface: True
     spinoza_data: True
-    out_dir: bids
+    out_dir: 'bids'
 
 mappings:
     bold: _bold
     T1w: _T1w
+    T2w: _T2w
+    FLAIR: _FLAIR
     dwi: _dwi
-    physio: _physi
+    physio: _physio
     events: _events
     phasediff: _phasediff
     magnitude: _magnitude
-    epi: _epi
+    epi: _topup
 
 metadata:
     MagneticFieldStrength: 3
     ParallelAcquisitionTechnique: SENSE
+    BIDSVersion: '1.1.0'
+    InstitutionName: Spinoza Centre for Neuroimaging, location REC

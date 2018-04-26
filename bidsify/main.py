@@ -136,7 +136,7 @@ def bidsify(cfg_path, directory, validate):
     # Check whether everything is available
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
-        install dcm2niix from neurodebian (Linux users) or download dcm2niix
+        install dfunccm2niix from neurodebian (Linux users) or download dcm2niix
         from Github (link) and compile locally (Mac/Windows); bidsify
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
         the bidsify Docker image!"""
@@ -253,7 +253,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # If spinoza-data (there is no specific config file), try to infer elements
     # from converted data
     if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
-        dtype_elements = _infer_dtype_elements(this_out_dir)
+        dtype_elements = _infer_dtype_elements(this_out_dir, cfg)
         cfg.update(dtype_elements)
 
     # Check which datatypes (dtypes) are available (func, anat, fmap, dwi)
@@ -347,6 +347,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
         warnings.warn("Cannot deface because FSL is not installed ...")
         cfg['options']['deface'] = False
 
+    # Check if nipype/pydeface is installed; if not, deface = False
     if cfg['options']['deface']:
         try:
             import nipype
@@ -359,27 +360,43 @@ def _parse_cfg(cfg_file, raw_data_dir):
     return cfg
 
 
-def _infer_dtype_elements(directory):
+def _infer_dtype_elements(directory, cfg):
+    """ Method to extract mtype/dtypes from data automatically. """
 
+    # Keep track of elements in a dictionary
     dtype_elements = dict()
+
+    # Loop over all possible dtypes (data types: func, anat, fmap, dwi)
     for dtype in DTYPES:
 
+        # Per dtype, loop over possible mtypes (modality types)
         for mtype in MTYPE_PER_DTYPE[dtype]:
-            files_found = glob(op.join(directory, '*_%s*' % mtype))
+            this_id = cfg['mappings'][mtype]
+            files_found = glob(op.join(directory, '*%s*' % this_id))
             counter = 1
             for f in files_found:
+
+                # Very stupid hack to undo typo in test-dataset
+                if '-acq' in f:
+                    os.rename(f, f.replace('-acq', '_acq'))
+                    f = f.replace('-acq', '_acq')
+
+                # Another hack
+                if mtype == 'epi' and 'task-' in f:
+                    os.rename(f, f.replace('task', 'dir'))
+                    f = f.replace('task', 'dir')
+
                 info = op.basename(f).split('.')[0].split('_')
                 info = [s for s in info if 'sub' not in s]
                 info = [s for s in info if len(s.split('-')) > 1]
 
                 # Remove everything that is not allowed for this mtype
                 info = [s for s in info if s.split('-')[0] in MTYPE_ORDERS[mtype].keys()]
-
                 info_dict = {s.split('-')[0]: s.split('-')[1] for s in info}
                 info_dict['id'] = '_'.join(info)
 
-                if mtype in ['phasediff', 'magnitude']:
-                    info_dict['id'] += '*_%s' % mtype
+                if mtype in ['phasediff', 'magnitude', 'epi']:
+                    info_dict['id'] += '*%s' % this_id
 
                 if dtype_elements.get(dtype, None) is None:
                     # If dtype is not yet a key, add it anyway
@@ -527,6 +544,10 @@ def _rename(cdir, dtype, sub_name, cfg):
                     if key in allowed_keys and key not in these_keys:
                         these_kv_pairs.update({key: value})
 
+            # Small hack to fix topups ('task' is not allowed; 'dir' is)
+            if 'task' in these_kv_pairs.keys() and mtype == 'epi':
+                these_kv_pairs['dir'] = these_kv_pairs.pop('task')
+
             # Sort kv-pairs using MTYPE_ORDERS
             this_order = MTYPE_ORDERS[mtype]
             ordered = sorted(zip(these_kv_pairs.keys(),
@@ -628,12 +649,12 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
             if mtype == 'epi':
 
                 pardir = op.dirname(op.dirname(this_json))
-                dir_idf = fbase.split('dir-')[1].split('_')[0]
                 acq_idf = fbase.split('acq-')[1].split('_')[0]
 
-                if dir_idf == 'dwi':
-
+                # Stupid hack, but it works
+                if 'Dirs' in acq_idf:
                     cdwi = glob(op.join(pardir, 'dwi', '*%s*_dwi.nii.gz' % acq_idf))
+
                     if not cdwi:
                         warnings.warn("Could not find DWI-file corresponding to topup (%s)!" % this_json)
                         int_for = 'Could not find corresponding file; add this yourself!'
@@ -641,6 +662,7 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
                         cdwi = op.basename(cdwi[0])
                         int_for = op.join(ses2append, 'dwi', cdwi)
                 else:  # assume bold
+                    dir_idf = fbase.split('dir-')[1].split('_')[0]
                     cbold = glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))
                     if not cbold:
                         warnings.warn("Cound not find bold-file corresponding to topup (%s)!" % this_json)
