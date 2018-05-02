@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, print_function
+import os
 import pytest
 import os.path as op
 from shutil import rmtree
@@ -6,12 +7,12 @@ from bidsify import bidsify
 
 data_path = op.join(op.dirname(op.dirname(op.abspath(__file__))), 'data')
 testdata_path = op.join(data_path, 'test_data')
-datasets = [op.join(testdata_path, 'PIOP_1', 'raw'),
-            op.join(testdata_path, 'Upgrade_2017', 'raw'),
-            op.join(testdata_path, 'testBidsify', 'parrec', 'raw'),
-            op.join(testdata_path, 'testBidsify', 'classic_dicom', 'raw'),
-            op.join(testdata_path, 'testBidsify', 'enh_dicom2', 'raw'),
-            op.join(testdata_path, 'SharedStates', 'raw')]
+datasets = [op.join(testdata_path, 'PIOP_1'),
+            op.join(testdata_path, 'Upgrade_2017'),
+            op.join(testdata_path, 'testBidsify', 'parrec'),
+            op.join(testdata_path, 'testBidsify', 'classic_dicom'),
+            op.join(testdata_path, 'testBidsify', 'enh_dicom2'),
+            op.join(testdata_path, 'SharedStates')]
 
 
 @pytest.mark.parametrize('path_to_data', datasets)
@@ -20,22 +21,33 @@ def test_bidsify(path_to_data):
 
     if not op.isdir(path_to_data):
         # Not all datasets are on travis
-        return
+        print("Couldn't find dataset %s." % path_to_data)
+        return None
+    else:
+        print("Testing dataset %s ..." % path_to_data)
 
-    bids_dir = op.join(op.dirname(path_to_data), 'bids')
+    bids_dir = op.join(path_to_data, 'bids')
     if op.isdir(bids_dir):
         rmtree(bids_dir)
 
-    unall_dir = op.join(op.dirname(path_to_data), 'unallocated')
+    unall_dir = op.join(path_to_data, 'unallocated')
     if op.isdir(unall_dir):
         rmtree(unall_dir)
 
-    if 'PIOP' in path_to_data:
-        cfg = op.join(path_to_data, 'config.yml')
-    else:
-        cfg = op.join(data_path, 'spinoza_cfg.yml')
+    bids_val_text = op.join(path_to_data, 'bids_validator_log.txt')
+    if op.isfile(bids_val_text):
+        os.remove(bids_val_text)
 
-    bidsify(cfg_path=cfg, directory=path_to_data, validate=True)
+    if 'Upgrade' in path_to_data or 'parrec' in path_to_data:
+        cfg = op.join(data_path, 'spinoza_cfg.yml')
+    elif 'dicom' in path_to_data:
+        cfg = op.join(data_path, 'spinoza_cfg_dicom.yml')
+    else:
+        cfg = op.join(path_to_data, 'raw', 'config.yml')
+
+    bidsify(cfg_path=cfg, directory=op.join(path_to_data, 'raw'), validate=True)
     rmtree(bids_dir)
     if op.isdir(unall_dir):
         rmtree(unall_dir)
+
+    os.remove(bids_val_text)
