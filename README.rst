@@ -348,14 +348,14 @@ Alternatively, if one was use use the DICOM format, it might look like this:
 
 - sub-01
 
-    - ses-01
-    
-        - DICOM
-        - DICOMDIR
+  - ses-01
+  
+    - DICOM
+    - DICOMDIR
         
-    - ses-02
-        - DICOM
-        - DICOMDIR
+  - ses-02
+    - DICOM
+    - DICOMDIR
 
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>".
