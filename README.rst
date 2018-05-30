@@ -2,7 +2,6 @@
 =============================================================
 
 .. _BIDS: http://bids.neuroimaging.io/
-.. _here: http://www.jsoneditoronline.org/?id=f175c0dc8f147229da869000d52af71c
 
 .. image:: https://travis-ci.org/spinoza-rec/bidsify.svg?branch=master
     :target: https://travis-ci.org/spinoza-rec/bidsify
@@ -18,73 +17,90 @@
 
 This package offers a tool to convert your raw (f)MRI data to the
 "Brain Imaging Data Structuce" (BIDS_) format. Using only a
-simple json config-file, it renames, reformats, and restructures
+simple (json or yaml) config-file, it renames, reformats, and restructures
 your files such that it fits the BIDS naming scheme and conforms
 to file-formats specified by BIDS. This tool has been used to
-successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_.
+successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_
+and quality control using the `mriqc <http://mriqc.readthedocs.io>`_ package. Currently, bidsify is "deployed"
+at the Spinoza Centre for Neuroimaging (location REC) to automatically convert data to BIDS after scanning
+(check the `nitools <https://github.com/spinoza-rec/nitools>`_ package to see how we deployed BIDS).
+
+This package was originally developed to handle MRI-data from Philips scanners which are traditionally exported
+in the "PAR/REC" format, but currently is also allows DICOM datasets. 
 
 ``bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
 in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request
 with your proposed solution!
 
+How does it work?
+-----------------
+After installing, the ``bidsify`` can be called as follows::
+
+    $ bidsify [-c config_file] [-d path_to_data_directory] [-v] [-D]
+
+The ``-c`` flag defaults to ``config.yml`` in the current working directory.
+
+The ``-d`` flag defaults to the current working directory.
+
+The ``-v`` flag calls bids-validator after BIDS-conversion (optional).
+
+The ``-D`` flag runs ``bidsify`` from Docker (experimental; not yet fully tested).
+
 Features
 --------
-So far, ``bidsify`` is able to do the following:
+This package aims to take in any MRI-dataset and convert it to BIDS using information from the
+config-file provided by the user. Obviously, ``bidsify`` cannot handle *all* types of scans/data,
+but it can process most of the default scans/files we use at our MRI centre (Spinoza Centre), including
 
-- Rename raw files to the format specified by BIDS (using the information in the config.json)
-- Convert raw Philips PAR/REC files and DICOM files (experimental; not fully tested) to nifti.gz format
-- Convert Presentation logfiles to BIDS-style event-files (.tsv files)
-- Convert Philips physiology files to BIDS-style physio-files (.tsv.gz file; experimental)
+- Standard (gradient-echo) EPI scans, both multiband and sequential
+- Standard (spin-echo) DWI scans
+- "Pepolar" (gradient-echo) EPI scans (also called "topup")
+- B0-based fieldmap scans (1 phase-difference + 1 magnitude image)
+- T1-weighted (FFE) and T2-weighted scans
 
-It supports the following types of data(sets):
+``bidsify`` can handle both PAR/REC and DICOM files. Moreover, in the future we want to enable processing of:
+
+- Philips physiology-files ("SCANPHYSLOG" files)
+
+In terms of "structure", this package allows the following "types" of datasets:
 
 - Multi-subject, multi-session datasets
-- Conversion and metadata extraction of (Philips style) 'B0 fieldmap' scans into 'phasediff' and 'magnitude' images
-- Conversion and metadata extraction of 'topup' (pepolar) fieldmaps
 
-It does not support (yet):
-
-- Extraction of slicetime information (because we advise against slice-time correction)
-
-The config.json file
+The config file
 --------------------
-``bidsify`` only needs a ``config.json`` file, which contains
-information that is used to rename and convert the raw files. An
-example of a complete ``config.json`` file can be found here_.
+``bidsify`` only needs a config-file in either the json or YAML format. This file should contain
+information that can be used to rename and convert the raw files. 
 
-The ``config.json`` file contains a couple of sections, which
-are explained below.
+The config file contains a couple of sections, which
+are explained below (we'll use the YAML format).
 
 "options"
 ~~~~~~~~~
-The first (top-level) section (or "attribute" in JSON-lingo) in the file
+The first (top-level) section (or "attribute" in JSON/YAML-lingo) in the file
 is the `"options"` section. An example of this section could be:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "options": {
-        "mri_type": "parrec",
-        "n_cores": -1,
-        "debug": 1,
-        "subject_stem": "sub",
-        "out_dir": "bids_converted",
-        "spinoza_data": 0
-    }
-  }
+    options:
+        mri_ext: PAR  # alternative: DICOM
+        debug: False
+        n_cores: -1
+        subject_stem: sub
+        deface: True
+        spinoza_data: True
+        out_dir: 'bids'
 
 No options *need* to be set explicitly as they all have sensible defaults.
 The attribute-value pairs mean the following:
 
-- "mri_type": filetype of MRI-scans ("parrec", "DICOM", "nifti"; default = "parrec")
-- "n_cores": how many CPUs to use during conversion (default: -1, all CPUs)
-- "debug": whether to print extra output for debugging (default: 0, False)
-- "subject_stem": prefix for subject-directories, e.g. "subject" in "subject-001" (default: "sub")
-- "out_dir": name of directory to save results to (default: "bids_converted")
-- "spinoza_data": whether data is from the `Spinoza centre <https://www.spinozacentre.nl>`_ (default: 0, False)
-
-Note: when the `"spinoza_data"` attribute is set to 1 (True), some default metadata-parameters are set automatically.
+- ``mri_type``: filetype of MRI-scans (PAR, DICOM; default: PAR)
+- ``n_cores``: how many CPUs to use during conversion (default: -1, all CPUs)
+- ``debug``: whether to print extra output for debugging (default: False)
+- ``subject_stem``: prefix for subject-directories, e.g. "subject" in "subject-001" (default: sub)
+- ``deface``: whether to deface the data (default: True, takes substantially longer though)
+- ``spinoza_data``: whether data is from the `Spinoza centre <https://www.spinozacentre.nl>`_ (default: False)
+- ``out_dir``: name of directory to save results to (default: bids)
 
 "mappings"
 ~~~~~~~~~~
@@ -97,27 +113,26 @@ specific suffix for a filetype, you need to specify that here. For example, a st
 dataset with several BOLD-fMRI files, a T1, and physiological recordings could have
 a mappings section like this:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "options": {
-
-        ...
-    },
-
-    "mappings": {
-
-      "bold": "_bold",
-      "T1w": "T1w",
-      "dwi": "dwi",
-      "physio": "_physio",
-    }
-
-  }
+    options:
+        # ............. #
+       
+    mappings:
+        bold: _func
+        T1w: 3DT1
+        dwi: DWI
+        physio: ppuresp
+        events: log
+        phasediff: _ph
+        magnitude: _mag
+        epi: topup
+        T2w: T2w
 
 Note that the mappings should be *unique*! In the example above, physiology-files ("physio") should
-therefore not contain *both* the identifier "_physio" *and* the identifier "_bold" (e.g.
-"sub-001_task-nback_bold_physio.txt")!
+therefore not contain *both* the identifier "ppuresp" *and* the identifier "_func" (e.g.
+"sub-001_task-nback_bold_physio.txt"), because otherwise ``bidsify`` doesn't know which type of
+file it is!
 
 Also, check the BIDS-specification for all filetypes supported by the format.
 
@@ -129,123 +144,98 @@ arbitrary amount of attribute-value pairs which will be appended to **each**
 JSON-metadata file during the conversion. These are thus "dataset-general" metadata
 parameters. For example, you could specify the data of conversion here, if you'd like:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "options": {
-        ...
-    },
+    options:
+        # some options
+        
+    mappings:
+        # some mappings
+        
+    metadata:
+        MagneticFieldStrength: 3
+        ParallelAcquisitionTechnique: SENSE
+        InstitutionName: Spinoza Centre for Neuroimaging, location REC
 
-    "mappings": {
-        ...
-    },
-
-    "metadata": {
-
-      "date_of_conversion": "01-01-2017"
-    }
-
-  }
-
-The "func", "anat", "dwi", and "fmap" sections
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-After the "options", "mappings", and (optionally) the "metadata" sections,
-the specifications for the four general "BIDS-datatypes" - "func", "anat", "dwi", and "fmap" -
+The ``func``, ``anat``, ``dwi``, and ``fmap`` sections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+After the ``options``, ``mappings``, and (optionally) the ``metadata`` sections,
+the specifications for the four general "BIDS-datatypes" - ``func``, ``anat``, ``dwi``, and ``fmap`` -
 are listed in separate sections.
 
-Each section, like "func", can contain multiple sub-sections referring to different scans
+Each section, like ``func``, can contain multiple sub-sections referring to different scans
 for that datatype. For example, you could have two different functional runs
 with each a different task ("workingmemory" and "nback"). In that case, the "func"
 section could look like:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "options": {
-        ...
-    },
+    options:
+        # some options
+        
+    mappings:
+        # some mappings
 
-    "mappings": {
-        ...
-    },
+    func:
 
-    "func": {
+      wm-task:
+         id: wmtask
+         task: workingmemory
 
-      "wm-task": {
-         "id": "wmtask",
-         "task": "workingmemory"
-      },
+      nback-task:
+         id: nbacktask
+         task: nback
 
-      "nback-task": {
-         "id": "nbacktask",
-         "task": "nback"
-      }
-
-    }
-
-  }
-
-The exact naming of the "attributes" (here: "wm-task" and "nback-task") of the sub-sections
-do not matter, but the subsequent key-value pairs *do* matter. You *always* need to set the "id"
+The exact naming of the "attributes" (here: ``wm-task`` and ``nback-task``) of the sub-sections
+do not matter, but the subsequent key-value pairs *do* matter. You *always* need to set the ``id``
 key, which is used to identify the files that belong to this particular task. Any key-value pair
-besides the "id" key-value pair are append to the renamed filename along the BIDS-format.
+besides the ``id`` key-value pair are append to the renamed filename along the BIDS-format.
 
-For example, suppose you have a raw file "``sub-001_wmtask.PAR``" (PAR-files are Philips specific "raw" MRI-files).
-With the above config-file, this file will be renamed into "``sub-001_task-workingmemory_bold.nii.gz``".
+For example, suppose you have a raw file ``sub-001_wmtask.PAR``. With the above config-file, this file
+will be renamed into ``sub-001_task-workingmemory_bold.nii.gz``.
 
-As discussed, *any* key-value pair besides "id" will be appended (in the format "key-value") to the
+As discussed, *any* key-value pair besides ``id`` will be appended (in the format "key-value") to the
 filename during the renaming-process. Imagine, for example, that you have only one task - "nback" - but
 you acquired four runs of it per subject, of which the first two were acquired with a sequential acquisition protocol,
 but the last two with a multiband protocol (e.g. if you'd want to do some methodological comparison).
 
 The config-file should, in that case, look like:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "options": {
-        ...
-    },
+    options:
+        # some options
+        
+    mappings:
+        # some mappings
 
-    "mappings": {
-        ...
-    },
+    func:
 
-    "func": {
+      nback-task1:
+          id: nback1
+          task: nback
+          run: 1
+          acq: sequential
 
-      "nback-task1": {
-         "id": "nback1",
-         "task": "nback",
-         "run": 1,
-         "acq": "sequential"
-      },
+      nback-task2:
+          id: nback1
+          task: nback
+          run: 2
+          acq: sequential
 
-      "nback-task2": {
-         "id": "nback2",
-         "task": "nback",
-         "run": 2,
-         "acq": "sequential"
-      },
+      nback-task3:
+          id: nback3
+          task: nback
+          run: 3
+          acq: multiband
 
-      "nback-task3": {
-         "id": "nback3",
-         "task": "nback",
-         "run": 3,
-         "acq": "multiband"
-      },
+      nback-task4:
+          id: nback4
+          task: nback
+          run: 4
+          acq: multiband
 
-      "nback-task4": {
-         "id": "nback4",
-         "task": "nback",
-         "run": 4,
-         "acq": "multiband"
-      }
-
-    }
-
-  }
-
-``bidsify`` will then create four files (assuming that they can be "found" using their corresponding "ids"):
+``bidsify`` will then create four files (assuming that they can be "found" using their corresponding ``id``s):
 
 - ``sub-001_task-nback_run-1_acq-sequential_bold.nii.gz``
 - ``sub-001_task-nback_run-2_acq-sequential_bold.nii.gz``
@@ -255,27 +245,26 @@ The config-file should, in that case, look like:
 The same logic can be applied to the "dwi", "anat", and "fmap" sections. For example, if you would have
 two T1-weighted structural scans, the "anat" section could look like:
 
-.. code-block:: json
+.. code-block:: anat
 
-  {
-    "anat": {
+    options:
+        # some options
+        
+    mappings:
+        # some mappings
 
-      "firstT1": {
-         "id": "3DT1_1",
-         "run": 1
-      },
+    anat:
 
-      "secondT1": {
-         "id": "3DT1_2",
-         "run": 2
-      }
+        firstT1:
+            id: 3DT1_1
+            run: 1
 
-    }
-
-  }
+        secondT1:
+            id: 3DT1_2
+            run: 2
 
 Importantly, any UNIX-style wildcard (e.g. \*, ?, and [a,A,1-9]) can be used in the
-"id" values in these sections!
+``id`` values in these sections!
 
 Lastly, apart from the different elements (such as ``nback-task1`` in the previous example),
 each datatype-section (``func``, ``anat``, ``fmap``, and ``dwi``) also may include a
@@ -291,61 +280,37 @@ the fields ``EchoTime1`` and ``EchoTime2``. To include those metadata fields in 
 corresponding JSON-files, just include a ``metadata`` field under the appropriate
 datatype section. For example, to do so for the previous examples:
 
-.. code-block:: json
+.. code-block:: yaml
 
-  {
-    "func": {
+    func:
 
-      "metadata": {
+        metadata:
 
-         "EffectiveEchoSpacing": 0.00365,
-         "PhaseEncodingDirection": "j"
+         EffectiveEchoSpacing: 0.00365
+         PhaseEncodingDirection: "j"
 
-      },
+        nback:
 
-      "nback": {
+            id: nback
+            task: nback
 
-         "id": "nback",
-         "task": "nback"
+    fmap:
 
-      }
+        metadata:
 
-    },
+            EchoTime1: 0.003
+            EchoTime2: 0.008
 
-    "fmap": {
+        B0: 
+         
+         id: B0
 
-      "metadata": {
-
-         "EchoTime1": 0.003,
-         "EchoTime2": 0.008
-
-      },
-
-      "B0": {
-
-         "id": "B0"
-
-      }
-
-    }
-
-  }
-
-
-Usage of ``bidsify``
+How to use ``bidsify``
 ----------------------
-After installing ``bidsify`` (see next section), the command ``bidsify``
-should be available in your terminal. It takes two (named) arguments:
-
-- -d ("directory"): path to the directory with the raw data that you want to convert
-- -c ("config"): path to the config-file that will be used during conversion
-
-If no arguments are given, the "directory" is assumed to be the current working directory
-and the config-file is assumed to be named "config.json" and to be located in the current
-working directory.
-
-Importantly, ``bidsify`` assumes that the directory with raw data is organized as follows
-(for the simple case of one BOLD run and one T1):
+After installing this package, the ``bidsify`` command should be available.
+This command assumes a specific organization of your directory with raw data.
+Below, I outlined the assumed structure for a simple dataset with one BOLD run and one T1-weighted scan across
+two sessions:
 
 - sub-01
 
@@ -379,10 +344,21 @@ Importantly, ``bidsify`` assumes that the directory with raw data is organized a
     - T1.PAR
     - T1.REC
 
+Alternatively, if one was use use the DICOM format, it might look like this:
+
+- sub-01
+
+    - ses-01
+    
+        - DICOM
+        - DICOMDIR
+        
+    - ses-02
+        - DICOM
+        - DICOMDIR
+
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>".
-Also, instead of separate \*.PAR and \*.REC files, you can also have a single or multiple DICOM
-files instead. (DICOM conversion has, however, not been thoroughly tested ...)
 
 Installing ``bidsify`` & dependencies
 ---------------------------------------
@@ -391,13 +367,8 @@ this repository directory (and then ``python setup.py install``) or installing i
 
     $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
 
-In terms of dependencies: ``bidsify`` currently only works with the
-`dcm2niix <https://github.com/rordenlab/dcm2niix>`_ conversion-software, which
-can be installed on Linux-systems using neurodebian::
-
-    $ sudo apt install dcm2niix
-
-For other platforms (Mac, Windows), check out the dcm2niix `Github page <https://github.com/rordenlab/dcm2niix/releases>`_.
+In terms of dependencies: ``bidsify`` uses `dcm2niix <https://github.com/rordenlab/dcm2niix>`_
+under the hood to convert PAR/REC and DICOM files to nifti.
 
 Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
 
