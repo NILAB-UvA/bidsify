@@ -44,15 +44,16 @@ def convert_mri(directory, cfg):
             _compress(nii)
             os.remove(nii)
 
-    _rename_phasediff_files(directory, idf='B0')
+    _rename_phasediff_files(directory, idf='phasediff')
 
 
-def _rename_phasediff_files(directory, idf='B0'):
+def _rename_phasediff_files(directory, idf='phasediff'):
     """ Renames Philips "B0" files (1 phasediff / 1 magnitude) because dcm2niix
     appends (or sometimes prepends) '_ph' to the filename after conversion.
     """
 
     b0_files = glob(op.join(directory, '*%s*' % idf))
+
     for f in b0_files:
         # Old version of dcm2niix
         new_name = f.replace('_phMag.json', '_phasediff.json')
@@ -62,4 +63,19 @@ def _rename_phasediff_files(directory, idf='B0'):
         # New version of dcm2niix
         new_name = new_name.replace('e1', 'magnitude')
         new_name = new_name.replace('e2', 'phasediff')
+
         os.rename(f, new_name)
+
+    # Hack for latest dcm2niix version
+    real_f = [f for f in b0_files if 'real' in f]
+    if len(real_f) > 2:
+        msg = "Found %i B0-files with 'real' in its filename: %s" % (real_f,)
+        raise ValueError(msg)
+    elif len(real_f) == 2:
+        json_file = [f for f in real_f if '.json' in f][0]
+        phasediff_file = [f for f in real_f if '.json' not in f][0]
+        magn_file = [f for f in b0_files if 'real' not in f][0]
+        os.rename(magn_file, magn_file.replace('phasediff', 'magnitude'))
+        os.rename(phasediff_file, phasediff_file.replace('_real', ''))
+    else:
+        pass  # just skip it
