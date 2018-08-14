@@ -146,11 +146,6 @@ def bidsify(cfg_path, directory, validate):
         msg = """The program 'bids-validator' was not found on your computer;
         setting the validate option to False"""
         warnings.warn(msg)
-
-    if not check_executable('bids-validator') and validate:
-        msg = """The program 'bids-validator' was not found on your computer;
-        setting the validate option to False"""
-        warnings.warn(msg)
         validate = False
 
     # Extract some values from cfg for readability
@@ -644,6 +639,14 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
                         tmp_metadata = tmp_metadata.get(mtype)
                         if tmp_metadata.get(acqtype, None) is not None:
                             tmp_metadata = tmp_metadata.get(acqtype)
+                        else:
+                            msg = ("Trying to append metadata from dtype=%s, mtype=%s, "
+                                   "acq=%s, but %s does not exist in spinoza_metadata.yml!" %
+                                    (dtype, mtype, acqtype, acqtype))
+                            raise ValueError(msg)
+                    else:
+                        # if there is no metadata, just append an empty dict
+                        tmp_metadata = dict()
                     this_metadata.update(tmp_metadata)
 
             if mtype == 'epi':
