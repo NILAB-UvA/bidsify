@@ -35,7 +35,7 @@ with your proposed solution!
 
 How does it work?
 -----------------
-After installing, the ``bidsify`` can be called as follows::
+After installing, the ``bidsify`` command can be called as follows::
 
     $ bidsify [-c config_file] [-d path_to_data_directory] [-v] [-D]
 
@@ -43,7 +43,7 @@ The ``-c`` flag defaults to ``config.yml`` in the current working directory.
 
 The ``-d`` flag defaults to the current working directory.
 
-The ``-v`` flag calls bids-validator after BIDS-conversion (optional).
+The ``-v`` flag calls `bids-validator <https://github.com/INCF/bids-validator>`_ after BIDS-conversion (optional).
 
 The ``-D`` flag runs ``bidsify`` from Docker (experimental; not yet fully tested).
 
@@ -89,7 +89,7 @@ is the `"options"` section. An example of this section could be:
         subject_stem: sub
         deface: True
         spinoza_data: True
-        out_dir: 'bids'
+        out_dir: bids
 
 No options *need* to be set explicitly as they all have sensible defaults.
 The attribute-value pairs mean the following:
@@ -100,7 +100,7 @@ The attribute-value pairs mean the following:
 - ``subject_stem``: prefix for subject-directories, e.g. "subject" in "subject-001" (default: sub)
 - ``deface``: whether to deface the data (default: True, takes substantially longer though)
 - ``spinoza_data``: whether data is from the `Spinoza centre <https://www.spinozacentre.nl>`_ (default: False)
-- ``out_dir``: name of directory to save results to (default: bids)
+- ``out_dir``: name of directory to save results to (default: bids), relative to project-root.
 
 "mappings"
 ~~~~~~~~~~
