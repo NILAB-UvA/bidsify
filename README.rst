@@ -245,7 +245,7 @@ The config-file should, in that case, look like:
 The same logic can be applied to the "dwi", "anat", and "fmap" sections. For example, if you would have
 two T1-weighted structural scans, the "anat" section could look like:
 
-.. code-block:: anat
+.. code-block:: yaml
 
     options:
         # some options
@@ -354,6 +354,7 @@ Alternatively, if one was use use the DICOM format, it might look like this:
     - DICOMDIR
         
   - ses-02
+
     - DICOM
     - DICOMDIR
 
