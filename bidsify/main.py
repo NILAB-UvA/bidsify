@@ -26,7 +26,7 @@ MTYPE_PER_DTYPE = dict(
     func=['bold'],
     anat=['T1w', 'T2w', 'FLAIR'],
     dwi=['dwi'],
-    fmap=['phasediff', 'magnitude', 'epi']
+    fmap=['phasediff', 'magnitude1', 'epi']
 )
 
 MTYPE_ORDERS = dict(
@@ -42,7 +42,7 @@ MTYPE_ORDERS = dict(
               stim=8),
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
-    magnitude=dict(sub=0, ses=1, acq=2, run=3, magnitude=4),
+    magnitude1=dict(sub=0, ses=1, acq=2, run=3, magnitude=4),
     epi=dict(sub=0, ses=1, acq=2, run=3, dir=5, epi=6)
 )
 

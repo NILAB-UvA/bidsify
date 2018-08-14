@@ -58,10 +58,10 @@ def _rename_phasediff_files(directory, idf='phasediff'):
         # Old version of dcm2niix
         new_name = f.replace('_phMag.json', '_phasediff.json')
         new_name = new_name.replace('_phMag_1', '_phasediff')
-        new_name = new_name.replace('_phMag_2', '_magnitude')
+        new_name = new_name.replace('_phMag_2', '_magnitude1')
 
         # New version of dcm2niix
-        new_name = new_name.replace('e1', 'magnitude')
+        new_name = new_name.replace('e1', 'magnitude1')
         new_name = new_name.replace('e2', 'phasediff')
 
         os.rename(f, new_name)
@@ -69,13 +69,16 @@ def _rename_phasediff_files(directory, idf='phasediff'):
     # Hack for latest dcm2niix version
     real_f = [f for f in b0_files if 'real' in f]
     if len(real_f) > 2:
-        msg = "Found %i B0-files with 'real' in its filename: %s" % (real_f,)
+        msg = "Found %i B0-files with 'real' in its filename: %s" % (len(real_f), real_f,)
         raise ValueError(msg)
     elif len(real_f) == 2:
         json_file = [f for f in real_f if '.json' in f][0]
         phasediff_file = [f for f in real_f if '.json' not in f][0]
-        magn_file = [f for f in b0_files if 'real' not in f][0]
-        os.rename(magn_file, magn_file.replace('phasediff', 'magnitude'))
+        magn_file = [f for f in b0_files if 'real' not in f and '.json' not in f][0]
+        magn_json_f = [f for f in b0_files if 'real' not in f and 'json' in f][0]
+        
+        os.remove(magn_json_f)
+        os.rename(magn_file, magn_file.replace('phasediff', 'magnitude1'))
         os.rename(phasediff_file, phasediff_file.replace('_real', ''))
     else:
         pass  # just skip it

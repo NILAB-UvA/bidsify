@@ -14,7 +14,7 @@ mappings:
     physio: _physio
     events: _events
     phasediff: _phasediff
-    magnitude: _magnitude
+    magnitude1: _magnitude1
     epi: _topup
     T2w: _T2w
     FLAIR: _FLAIR
