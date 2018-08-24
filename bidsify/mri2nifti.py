@@ -33,8 +33,22 @@ def convert_mri(directory, cfg):
         # Experimental enh DICOM conversion
         dcm_cmd = base_cmd + " -f %n_%p " + directory
         _run_cmd(dcm_cmd.split(' '))
-        rmtree(op.join(directory, 'DICOM'))
-        os.remove(op.join(directory, 'DICOMDIR'))
+
+        if op.isdir(op.join(directory, 'DICOM')):
+            rmtree(op.join(directory, 'DICOM'))
+        
+        if op.isfile(op.join(directory, 'DICOMDIR')):
+            os.remove(op.join(directory, 'DICOMDIR'))
+
+        im_files = glob(op.join(directory, 'IM_????'))
+        _ = [os.remove(f) for f in im_files]
+
+        ps_files = glob(op.join(directory, 'PS_????'))
+        _ = [os.remove(f) for f in ps_files]
+
+        xx_files = glob(op.join(directory, 'XX_????'))
+        _ = [os.remove(f) for f in xx_files]
+
     else:
         raise ValueError('Please select either PAR or DICOM for mri_ext!')
 
