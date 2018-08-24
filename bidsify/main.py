@@ -242,6 +242,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
 
+    # Reorient2std 
+    _reorient_mri(this_out_dir)
+
     # Remove weird ADC file(s); no clue what they represent ...
     [os.remove(f) for f in glob(op.join(this_out_dir, '*ADC*.nii.gz'))]
 
@@ -680,6 +683,13 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
                 this_metadata.update({'TaskName': task_name})
 
             _append_to_json(this_json, this_metadata)
+
+
+def _reorient_mri(directory):
+    """ Reorient MRI file """
+
+    files = glob(op.join(directory, '*.nii.gz'))
+    _ = [_run_cmd(['fslreorient2std', f, f]) for f in files]
 
 
 def _deface(f):
