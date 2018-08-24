@@ -84,6 +84,18 @@ func:  # dtype
             TotalReadoutTime: 0.01347 # TO CHECK
             PulseSequenceType: Multiband gradient echo EPI
 
+        Mb4Mm2Tr1800:
+            # modified version of new MB4 sequence (project 
+            PhaseEncodingDirection: j
+            EffectiveEchoSpacing: 0.00034538  # TO CHECK
+            SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 1.51  # TO CHECK
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.683
+            FlipAngle: 55  # TO CHECK
+            TotalReadoutTime: 0.01347 # TO CHECK
+            PulseSequenceType: Multiband gradient echo EPI
+
 fmap:  # dtype
 
     phasediff:  # mtype
@@ -162,6 +174,18 @@ fmap:  # dtype
             MultibandAccelerationFactor: 4
             WaterFatShift: 14.388
             FlipAngle: 55
+            TotalReadoutTime: 0.01347 # TO CHECK
+            PulseSequenceType: Multiband gradient echo EPI
+
+        Mb4Mm2Tr1800:
+            # modified version of new MB4 sequence (project 
+            PhaseEncodingDirection: j-
+            EffectiveEchoSpacing: 0.00034538  # TO CHECK
+            SliceEncodingDirection: k
+            ParallelReductionFactorInPlane: 1.51  # TO CHECK
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.683
+            FlipAngle: 55  # TO CHECK
             TotalReadoutTime: 0.01347 # TO CHECK
             PulseSequenceType: Multiband gradient echo EPI
 
