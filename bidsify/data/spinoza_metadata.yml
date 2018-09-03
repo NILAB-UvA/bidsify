@@ -4,97 +4,121 @@ func:  # dtype
     bold:  # mtype
 
         SeqSense2Mm3:  # acqtype
-            # Standard non-MB sequence
+            # OLD: standard non-MB sequence
+            PulseSequenceType: Gradient Echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 2
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             WaterFatShift: 11.999
             FlipAngle: 76.10
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Gradient Echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         SeqMm3Tr2000:  # new name of above
+            PulseSequenceType: Gradient Echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 2
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             WaterFatShift: 11.999
             FlipAngle: 76.10
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Gradient Echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         MB3Sense2Mm3:
             # old MB3 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 0.764
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             MultibandAccelerationFactor: 3
             WaterFatShift: 11.999
-            FlipAngle: 76.10
+            FlipAngle: 60
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Multiband gradient echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         Mb4Mm3Tr550:
             # new MB4 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 0.550
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 1.51
             MultibandAccelerationFactor: 4
             WaterFatShift: 14.308
             FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
-            PulseSequenceType: Multiband gradient echo EPI
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm27Tr700:
             # new MB4 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 0.550
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
             MultibandAccelerationFactor: 4
             WaterFatShift: 14.388
             FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
-            PulseSequenceType: Multiband gradient echo EPI
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm2Tr1600:
             # new MB4 sequence
-            PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
-            SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51
-            MultibandAccelerationFactor: 4
-            WaterFatShift: 14.388
-            FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
             PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.6
+            PhaseEncodingDirection: j
+            SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.709
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm2Tr1600EnhStab:
             # new MB4 sequence w/enhanced dynamic stabilization
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.6
             PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
             SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
             MultibandAccelerationFactor: 4
             WaterFatShift: 23.709
-            FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
-            PulseSequenceType: Multiband gradient echo EPI
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm2Tr1800:
-            # modified version of new MB4 sequence (project 
-            PhaseEncodingDirection: j
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
-            SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51  # TO CHECK
-            MultibandAccelerationFactor: 4
-            WaterFatShift: 23.683
-            FlipAngle: 55  # TO CHECK
-            TotalReadoutTime: 0.01347 # TO CHECK
+            # modified version of new MB4 sequence (project MW)
             PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.8
+            PhaseEncodingDirection: j
+            SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.709
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
 fmap:  # dtype
 
@@ -109,85 +133,121 @@ fmap:  # dtype
     epi:  # a.k.a. topup (but 'epi' according to BIDS)
 
         SeqSense2Mm3:  # acqtype
-            # Standard non-MB sequence
+            # OLD: standard non-MB sequence
+            PulseSequenceType: Gradient Echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 2
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             WaterFatShift: 11.999
             FlipAngle: 76.10
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Gradient Echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         SeqMm3Tr2000:  # new name of above
+            PulseSequenceType: Gradient Echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 2
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             WaterFatShift: 11.999
             FlipAngle: 76.10
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Gradient Echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         MB3Sense2Mm3:
             # old MB3 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.028
+            RepetitionTime: 0.764
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 2
             MultibandAccelerationFactor: 3
             WaterFatShift: 11.999
-            FlipAngle: 76.10
+            FlipAngle: 60
             TotalReadoutTime: 0.01347
-            PulseSequenceType: Multiband gradient echo EPI
+            EffectiveEchoSpacing: 0.00034538
 
         Mb4Mm3Tr550:
             # new MB4 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 0.550
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
             SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
             ParallelReductionFactorInPlane: 1.51
             MultibandAccelerationFactor: 4
             WaterFatShift: 14.308
             FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
-            PulseSequenceType: Multiband gradient echo EPI
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm27Tr700:
             # new MB4 sequence
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 0.550
             PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538
             SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
             MultibandAccelerationFactor: 4
             WaterFatShift: 14.388
             FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
-            PulseSequenceType: Multiband gradient echo EPI
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm2Tr1600:
             # new MB4 sequence
-            PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
-            SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51
-            MultibandAccelerationFactor: 4
-            WaterFatShift: 14.388
-            FlipAngle: 55
-            TotalReadoutTime: 0.01347 # TO CHECK
             PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.6
+            PhaseEncodingDirection: j-
+            SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.709
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
+
+        Mb4Mm2Tr1600EnhStab:
+            # new MB4 sequence w/enhanced dynamic stabilization
+            PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.6
+            PhaseEncodingDirection: j-
+            SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.709
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         Mb4Mm2Tr1800:
-            # modified version of new MB4 sequence (project 
-            PhaseEncodingDirection: j-
-            EffectiveEchoSpacing: 0.00034538  # TO CHECK
-            SliceEncodingDirection: k
-            ParallelReductionFactorInPlane: 1.51  # TO CHECK
-            MultibandAccelerationFactor: 4
-            WaterFatShift: 23.683
-            FlipAngle: 55  # TO CHECK
-            TotalReadoutTime: 0.01347 # TO CHECK
+            # modified version of new MB4 sequence (project MW)
             PulseSequenceType: Multiband gradient echo EPI
+            EchoTime: 0.030
+            RepetitionTime: 1.8
+            PhaseEncodingDirection: j-
+            SliceEncodingDirection: k
+            ParallelAcquisitionTechnique: SENSE
+            ParallelReductionFactorInPlane: 1.50
+            MultibandAccelerationFactor: 4
+            WaterFatShift: 23.709
+            FlipAngle: 70
+            TotalReadoutTime: 0.01347  # ToCheck
+            EffectiveEchoSpacing: 0.00034538  # ToCheck
 
         SeqSense2Dirs32:
             RepetitionTime: 7.464
@@ -203,6 +263,17 @@ dwi:
     dwi:
 
         SeqSense2Dirs32:
+            # Old name
+            RepetitionTime: 7.464
+            PhaseEncodingDirection: j
+            ParallelReductionFactorInPlane: 2
+            WaterFatShift: 18.925
+            FlipAngle: 90
+            TotalReadoutTime: 0.01899975 # to check
+            EffectiveEchoSpacing: 0.01899975
+
+        SeqMm2Dirs32:
+            # New name
             RepetitionTime: 7.464
             PhaseEncodingDirection: j
             ParallelReductionFactorInPlane: 2
