@@ -7,7 +7,10 @@ import fnmatch
 import warnings
 import yaml
 import logging
+import json
 import pandas as pd
+import nibabel as nib
+import numpy as np
 from copy import copy, deepcopy
 from glob import glob
 from joblib import Parallel, delayed
@@ -289,7 +292,11 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
             unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
         _make_dir(unall_dir)
         for f in unallocated:
-            shutil.move(f, unall_dir)
+            # only move if doesn't exist already
+            if not op.isfile(op.join(unall_dir, op.basename(f))):
+                shutil.move(f, unall_dir)
+            else:
+                os.remove(f)
 
     # ... and extract some extra meta-data
     for data_dir in data_dirs:
@@ -682,6 +689,43 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
                 task_name = fbase.split('task-')[1].split('_')[0]
                 this_metadata.update({'TaskName': task_name})
 
+                # Slicetiming info. Note: we assume ascending order!
+                with open(this_json, 'r') as to_read:
+                    this_json_opened = json.load(to_read)
+
+                if 'SliceEncodingDirection' in this_json_opened.keys():
+                    sed = this_json_opened['SliceEncodingDirection']
+                else:
+                    sed = 'none'
+                
+                if 'SliceEncodingDirection' in this_metadata.keys():
+                    sed = this_metadata['SliceEncodingDirection']
+                else:
+                    sed = 'none'
+                
+                if sed != 'k':
+                    warnings.warn("Cannot set slice-timing if SliceTimingDirection is not 'k'!")                   
+                else:
+                    this_tr = this_json_opened['RepetitionTime']
+                    corresp_func = this_json.replace('.json', '.nii.gz')
+                    nr_slices = nib.load(corresp_func).header.get_data_shape()[2]
+                    if 'MultibandAccelerationFactor' in this_json_opened.keys():
+                        mb_factor = int(this_json_opened['MultibandAccelerationFactor'])
+                    else:
+                        mb_factor = 0
+                    
+                    if 'MultibandAccelerationFactor' in this_metadata.keys():
+                        mb_factor = int(this_metadata['MultibandAccelerationFactor'])
+                    else:
+                        mb_factor = 0
+
+                    if mb_factor > 0:
+                        slice_timing = np.tile(np.linspace(0, this_tr, int(nr_slices/mb_factor)+1)[:-1], mb_factor)
+                    else:
+                        slice_timing = np.linspace(0, this_tr, nr_slices+1)[:-1]
+                    slice_timing = slice_timing.tolist()
+                    this_metadata.update({'SliceTiming': slice_timing})
+           
             _append_to_json(this_json, this_metadata)
 
 
@@ -696,7 +740,8 @@ def _deface(f):
     """ Deface anat data. """
 
     _run_cmd(['pydeface', f])  # Run pydeface
-    os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
+    if op.isfile(f.replace('nii.gz', '_defaced.nii.gz')):
+        os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
 
 
 def _extract_sub_nr(sub_stem, sub_name):

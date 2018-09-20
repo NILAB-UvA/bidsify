@@ -64,7 +64,7 @@ func:  # dtype
             # new MB4 sequence
             PulseSequenceType: Multiband gradient echo EPI
             EchoTime: 0.030
-            RepetitionTime: 0.550
+            RepetitionTime: 0.700
             PhaseEncodingDirection: j
             SliceEncodingDirection: k
             ParallelAcquisitionTechnique: SENSE
