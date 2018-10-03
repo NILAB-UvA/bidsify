@@ -9,14 +9,13 @@ import os
 import zipfile
 import os.path as op
 
-
 this_dir = op.dirname(op.realpath(__file__))
-dst_dir = op.join(this_dir, 'bidsify', 'data', 'test_data')
+dst_dir = op.join(this_dir, 'bidsify', 'data')
 dst_file = op.join(dst_dir, 'test_data.zip')
 
 data_file = 'https://surfdrive.surf.nl/files/index.php/s/PaIp9fA9K4JIwLC/download'
 
-if not op.isdir(op.join(dst_dir, 'PIOP_1')):
+if not op.isdir(op.join(dst_dir, 'PIOP_1_parrec')):
 
     print("Downloading the data ...\n")
     cmd = "curl -o %s %s" % (dst_file, data_file)
