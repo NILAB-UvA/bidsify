@@ -103,8 +103,8 @@ ENV/
 OLD/
 .DS_Store
 
-bidsify/data/test_data/PIOP_1
-bidsify/data/test_data/Upgrade_2017
-bidsify/data/test_data/testBidsify
-bidsify/data/test_data/SharedStates
+bidsify/data/test_data
+bidsify/data/test_data
+bidsify/data/test_data
+bidsify/data/test_data
 .pytest_cache
