@@ -92,9 +92,17 @@ def run_cmd():
                         required=False, action='store_true',
                         default=False)
 
+    parser.add_argument('-s', '--spinoza',
+                        help='Whether is is Spinoza-REC data',
+                        required=False, action='store_true',
+                        default=False)
+
     args = parser.parse_args()
     if args.out is None:
         args.out = op.dirname(args.directory)
+
+    if args.spinoza:
+       args.config_file = op.join(op.dirname(__file__), 'data', 'spinoza_cfg.yml')
 
     if args.docker:
         run_from_docker(cfg_path=args.config_file, in_dir=args.directory,
