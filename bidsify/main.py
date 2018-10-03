@@ -246,7 +246,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     convert_mri(this_out_dir, cfg)
 
     # Reorient2std 
-    _reorient_mri(this_out_dir)
+    if not 'TRAVIS' in os.environ:
+        # only run when not on Travis CI (on which FSL is not installed)
+        _reorient_mri(this_out_dir)
 
     # Remove weird ADC file(s); no clue what they represent ...
     [os.remove(f) for f in glob(op.join(this_out_dir, '*ADC*.nii.gz'))]
@@ -740,7 +742,7 @@ def _deface(f):
     """ Deface anat data. """
 
     _run_cmd(['pydeface', f])  # Run pydeface
-    if op.isfile(f.replace('nii.gz', '_defaced.nii.gz')):
+    if op.isfile(f.replace('.nii.gz', '_defaced.nii.gz')):
         os.rename(f.replace('.nii.gz', '_defaced.nii.gz'), f)  # Revert to old name
 
 
