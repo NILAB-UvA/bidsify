@@ -5,7 +5,7 @@
 
 .. image:: https://travis-ci.org/spinoza-rec/bidsify.svg?branch=master
     :target: https://travis-ci.org/spinoza-rec/bidsify
-
+ 
 .. image:: https://ci.appveyor.com/api/projects/status/d9a7bjjqg204kofm?svg=true
     :target: https://ci.appveyor.com/project/lukassnoek/bidsify
 
