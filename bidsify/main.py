@@ -223,7 +223,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     else:
         sub_name = _extract_sub_nr(options['subject_stem'], op.basename(cdir))
         this_out_dir = op.join(out_dir, sub_name)
-        print("Processing sub '%s'" % sub_name)
 
     # Important: to find session-dirs, they should be named
     # ses-*something*
@@ -237,8 +236,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     already_exists = op.isdir(this_out_dir)
     if already_exists:
-        print('%s already converted - skipping ...' % this_out_dir)
+        print('Data from %s has been converted already - skipping ...' % sub_name)
         return None
+    else:
+        print('Converting data from %s ...' % sub_name)
 
     # Make dir and copy all files to this dir
     _make_dir(this_out_dir)
