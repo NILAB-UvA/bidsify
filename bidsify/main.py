@@ -318,6 +318,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
         [_deface(f) for f in anat_files]
 
+        magn_files = glob(op.join(this_out_dir, 'fmap', '*magnitude*.nii.gz'))
+        [_deface(f) for f in magn_files]
+
 
 def _parse_cfg(cfg_file, raw_data_dir):
     """ Parses config file and sets defaults. """
