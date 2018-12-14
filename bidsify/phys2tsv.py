@@ -6,6 +6,7 @@ import pandas as pd
 
 def convert_phy(f):
 
+    '''
     try:  # Try to skip 5 rows (new version)
         df = pd.read_csv(f, delim_whitespace=True, skiprows=5, header=0,
                          low_memory=False)
@@ -29,3 +30,5 @@ def convert_phy(f):
 
     df.to_csv(fn + '.tsv.gz', sep='\t', index=None, compression='gzip')
     os.remove(f)
+    '''
+    pass
