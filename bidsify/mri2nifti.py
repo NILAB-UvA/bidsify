@@ -19,15 +19,16 @@ def convert_mri(directory, cfg):
     else:
         base_cmd += " -z n"
 
-    if mri_ext == 'PAR':
-        mri_files = glob(op.join(directory, '*.PAR'))
+    if mri_ext in ['PAR', 'dcm']:
+        mri_files = glob(op.join(directory, '*.%s' % mri_ext))
         for f in mri_files:
             basename, ext = op.splitext(op.basename(f))
             par_cmd = base_cmd + " -f %s %s" % (basename, f)
             # if debug, print dcm2niix output
             _run_cmd(par_cmd.split(' '), verbose=cfg['options']['debug'])
             os.remove(f)
-            os.remove(f.replace('.%s' % mri_ext, '.REC'))
+            if mri_ext == 'PAR':
+                os.remove(f.replace('.%s' % mri_ext, '.REC'))
 
     elif mri_ext == 'DICOM':
         # Experimental enh DICOM conversion
@@ -48,7 +49,6 @@ def convert_mri(directory, cfg):
 
         xx_files = glob(op.join(directory, 'XX_????'))
         _ = [os.remove(f) for f in xx_files]
-
     else:
         raise ValueError('Please select either PAR or DICOM for mri_ext!')
 
