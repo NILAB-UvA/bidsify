@@ -26,7 +26,7 @@ at the Spinoza Centre for Neuroimaging (location REC) to automatically convert d
 (check the `nitools <https://github.com/spinoza-rec/nitools>`_ package to see how we deployed BIDS).
 
 This package was originally developed to handle MRI-data from Philips scanners which are traditionally exported
-in the "PAR/REC" format, but currently is also allows DICOM datasets. 
+in the "PAR/REC" format. Currently, ``bidsify`` also supports Philips (enhanced) DICOM (`DICOM`/`DICOMDIR` format) and Siemens DICOM (`.dcm` extension), but this is not fully tested yet! 
 
 ``bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
@@ -45,7 +45,7 @@ The ``-d`` flag defaults to the current working directory.
 
 The ``-v`` flag calls `bids-validator <https://github.com/INCF/bids-validator>`_ after BIDS-conversion (optional).
 
-The ``-D`` flag runs ``bidsify`` from Docker (experimental; not yet fully tested).
+The ``-D`` flag runs ``bidsify`` from Docker (WIP; not working yet).
 
 Features
 --------
@@ -61,7 +61,7 @@ but it can process most of the default scans/files we use at our MRI centre (Spi
 
 ``bidsify`` can handle both PAR/REC and DICOM files. Moreover, in the future we want to enable processing of:
 
-- Philips physiology-files ("SCANPHYSLOG" files)
+- Philips physiology-files ("SCANPHYSLOG" files; WIP, not functional yet)
 
 In terms of "structure", this package allows the following "types" of datasets:
 
@@ -83,7 +83,7 @@ is the `"options"` section. An example of this section could be:
 .. code-block:: yaml
 
     options:
-        mri_ext: PAR  # alternative: DICOM
+        mri_ext: PAR  # alternatives: DICOM, dcm
         debug: False
         n_cores: -1
         subject_stem: sub
@@ -94,13 +94,15 @@ is the `"options"` section. An example of this section could be:
 No options *need* to be set explicitly as they all have sensible defaults.
 The attribute-value pairs mean the following:
 
-- ``mri_type``: filetype of MRI-scans (PAR, DICOM; default: PAR)
+- ``mri_type``: filetype of MRI-scans (PAR, dcm, DICOM; default: PAR)
 - ``n_cores``: how many CPUs to use during conversion (default: -1, all CPUs)
 - ``debug``: whether to print extra output for debugging (default: False)
 - ``subject_stem``: prefix for subject-directories, e.g. "subject" in "subject-001" (default: sub)
 - ``deface``: whether to deface the data (default: True, takes substantially longer though)
 - ``spinoza_data``: whether data is from the `Spinoza centre <https://www.spinozacentre.nl>`_ (default: False)
 - ``out_dir``: name of directory to save results to (default: bids), relative to project-root.
+
+Note that with respect to DICOM files, the ``mri_type`` can be set to ``DICOM`` (referring to Philips [enhanced] DICOM files) or ``dcm`` (referring to Siemens DICOM files with the extension ``.dcm``).
 
 "mappings"
 ~~~~~~~~~~
@@ -129,10 +131,9 @@ a mappings section like this:
         epi: topup
         T2w: T2w
 
-Note that the mappings should be *unique*! In the example above, physiology-files ("physio") should
-therefore not contain *both* the identifier "ppuresp" *and* the identifier "_func" (e.g.
-"sub-001_task-nback_bold_physio.txt"), because otherwise ``bidsify`` doesn't know which type of
-file it is!
+Note that *every file should belong to one, and only one, file-type*! In other words, ``bidsify`` should be able to figure out what kind of file it's dealing with from the filename. For example, if you have a file named ``my_mri_file.PAR`` and you have configured the mappings as in the example above, ``bidsify`` won't be able to figure out what file-type it's dealing with (a ``bold`` file? A ``T1w`` file?), because the filename does not contain *any* of the mappings (e.g., ``_func``, ``3DT1``, or ``DWI``).
+
+Moreover, the filename should not contain *more than one file-type identifier*! Suppose you have a file named ``workingmemory_func_ppuresp.nii.gz``; with the above mappings, ``bidsify`` would conclude that it's either a ``bold`` file (because the name contains ``_func``) OR a ``physio`` file (because the name contains ``ppuresp``). As such, ``bidsify`` is going to skip converting/renaming this file and move it to the `unallocated` directory. In summary: files should contain one, and *only one*, identifier (such as ``_func``) mapping to a particular file-type (e.g., ``bold``). 
 
 Also, check the BIDS-specification for all filetypes supported by the format.
 
