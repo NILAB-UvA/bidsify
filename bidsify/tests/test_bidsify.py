@@ -9,9 +9,6 @@ data_path = op.join(op.dirname(op.dirname(op.abspath(__file__))), 'data')
 testdata_path = op.join(data_path, 'test_data')
 datasets = [op.join(testdata_path, 'PIOP_1'),
             op.join(testdata_path, 'Upgrade_2017'),
-            op.join(testdata_path, 'testBidsify', 'parrec'),
-            op.join(testdata_path, 'testBidsify', 'classic_dicom'),
-            op.join(testdata_path, 'testBidsify', 'enh_dicom2'),
             op.join(testdata_path, 'SharedStates')]
 
 
@@ -38,10 +35,8 @@ def test_bidsify(path_to_data):
     if op.isfile(bids_val_text):
         os.remove(bids_val_text)
 
-    if 'Upgrade' in path_to_data or 'parrec' in path_to_data:
+    if 'Upgrade' in path_to_data:
         cfg = op.join(data_path, 'spinoza_cfg.yml')
-    elif 'dicom' in path_to_data:
-        cfg = op.join(data_path, 'spinoza_cfg_dicom.yml')
     else:
         cfg = op.join(path_to_data, 'raw', 'config.yml')
 

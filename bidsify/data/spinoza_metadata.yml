@@ -45,6 +45,7 @@ func:  # dtype
             TotalReadoutTime: 0.0269452
             EffectiveEchoSpacing: 0.0006909
 
+
         Mb4Mm3Tr550:
             # new MB4 sequence
             PulseSequenceType: Multiband gradient echo EPI

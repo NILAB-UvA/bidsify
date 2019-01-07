@@ -5,7 +5,7 @@ options:
     subject_stem: sub
     deface: True
     spinoza_data: True
-    out_dir: 'bids'
+    out_dir: bids
 
 mappings:
     bold: _bold

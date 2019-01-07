@@ -147,10 +147,10 @@ def bidsify(cfg_path, directory, validate):
     # Check whether everything is available
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
-        install dfunccm2niix from neurodebian (Linux users) or download dcm2niix
+        install dcm2niix from neurodebian (Linux users) or download dcm2niix
         from Github (link) and compile locally (Mac/Windows); bidsify
         needs dcm2niix to convert MRI-files to nifti!. Alternatively, use
-        the bidsify Docker image!"""
+        the bidsify Docker image (not yet tested)!"""
         warnings.warn(msg)
 
     if not check_executable('bids-validator') and validate:
@@ -178,8 +178,13 @@ def bidsify(cfg_path, directory, validate):
     # Write example description_dataset.json to disk
     desc_json = op.join(op.dirname(__file__), 'data',
                         'dataset_description.json')
-    dst = op.join(cfg['options']['out_dir'], 'dataset_description.json')
+    dst = op.join(out_dir, 'dataset_description.json')
     shutil.copyfile(src=desc_json, dst=dst)
+
+    # Copy .bidsignore (if any)
+    bidsignore_file = op.join(directory, '.bidsignore')
+    if op.isfile(bidsignore_file):
+        shutil.copyfile(src=bidsignore_file, dst=op.join(out_dir, '.bidsignore'))
 
     # Write participants.tsv to disk
     found_sub_dirs = sorted(glob(op.join(cfg['options']['out_dir'], 'sub-*')))
@@ -188,14 +193,14 @@ def bidsify(cfg_path, directory, validate):
     participants_tsv = pd.DataFrame(index=range(len(sub_names)),
                                     columns=['participant_id'])
     participants_tsv['participant_id'] = sub_names
-    f_out = op.join(cfg['options']['out_dir'], 'participants.tsv')
+    f_out = op.join(out_dir, 'participants.tsv')
     participants_tsv.to_csv(f_out, sep='\t', index=False)
 
     if validate:
-        bids_validator_log = op.join(op.dirname(cfg['options']['out_dir']),
+        bids_validator_log = op.join(op.dirname(out_dir),
                                      'bids_validator_log.txt')
-        cmd = ['bids-validator', '--ignoreNiftiHeaders',
-               cfg['options']['out_dir']]
+        cmd = ['bids-validator', '--ignoreNiftiHeaders', out_dir]
+
         rs = _run_cmd(cmd, outfile=bids_validator_log, verbose=True)
         if rs == 0:
             msg = ("bidsify exited without errors and passed the "
