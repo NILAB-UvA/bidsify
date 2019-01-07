@@ -3,7 +3,7 @@ sudo: false
 
 env:
   global:
-    - PIP_DEPS="pytest coveralls pytest-cov flake8"
+    - PIP_DEPS="coveralls pytest-cov flake8"
 
 python:
   - '3.6'
@@ -22,6 +22,7 @@ before_install:
   - npm install -g bids-validator
 
 install:
+- travis_retry pip install --upgrade pytest  # new pytest>3.3 for coveralls
 - travis_retry pip install $PIP_DEPS
 - cd $TRAVIS_BUILD_DIR
 - travis_retry pip install -r requirements.txt
