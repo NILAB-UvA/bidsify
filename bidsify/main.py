@@ -110,7 +110,7 @@ def run_cmd():
 
     if args.docker:
         run_from_docker(cfg=args.config_file, in_dir=args.directory,
-                        out_dir=args.out, validate=args.validate)
+                        out_dir=args.out, validate=args.validate, spinoza=args.spinoza)
     else:
         bidsify(cfg_path=args.config_file, directory=args.directory,
                 out_dir=args.out, validate=args.validate)
