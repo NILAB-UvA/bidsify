@@ -45,7 +45,7 @@ The ``-d`` flag defaults to the current working directory.
 
 The ``-v`` flag calls `bids-validator <https://github.com/INCF/bids-validator>`_ after BIDS-conversion (optional).
 
-The ``-D`` flag runs ``bidsify`` from Docker (WIP; not working yet).
+The ``-D`` flag runs ``bidsify`` from Docker (recommended; see "Docker" section below).
 
 Features
 --------
@@ -57,7 +57,7 @@ but it can process most of the default scans/files we use at our MRI centre (Spi
 - Standard (spin-echo) DWI scans
 - "Pepolar" (gradient-echo) EPI scans (also called "topup")
 - B0-based fieldmap scans (1 phase-difference + 1 magnitude image)
-- T1-weighted (FFE) and T2-weighted scans
+- T1-weighted and T2-weighted scans
 
 ``bidsify`` can handle both PAR/REC and DICOM files. Moreover, in the future we want to enable processing of:
 
@@ -68,7 +68,7 @@ In terms of "structure", this package allows the following "types" of datasets:
 - Multi-subject, multi-session datasets
 
 The config file
---------------------
+---------------
 ``bidsify`` only needs a config-file in either the json or YAML format. This file should contain
 information that can be used to rename and convert the raw files. 
 
@@ -362,6 +362,19 @@ Alternatively, if one was use use the DICOM format, it might look like this:
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>".
 
+Using Docker
+------------
+The current version (master branch) allows you to run `bidsify` from docker, so you don't
+have to install all the (large) dependencies (FSL, pydeface, dcm2niix, etc.). To do so,
+you need to do the following.
+
+1. Install Docker (if you haven't already) and make sure you have permission to run Docker;
+2. Pull the Docker image: ``docker pull lukassnoek/bidsify:0.3``;
+3. Run bidsify with the `-D` flag (e.g., ``bidsify -c /home/user/config.yml -d /home/user/data -D``)
+
+Now you can use ``bidsify`` even without having FSL, dcm2niix, and other dependencies installed!
+(You do need to install ``bidsify`` itself though.)
+
 Installing ``bidsify`` & dependencies
 ---------------------------------------
 For now, it can only be installed from Github (no PyPI package yet), either by cloning
@@ -379,3 +392,5 @@ Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
 - numpy
 - joblib (for parallelization)
 - pandas
+
+If you want to use the Docker interface (i.e., running ``bidsify`` with the `-D` flag), make sure to install Docker and make sure your user account has permission to run Docker.
