@@ -40,7 +40,8 @@ def test_bidsify(path_to_data):
     else:
         cfg = op.join(path_to_data, 'raw', 'config.yml')
 
-    bidsify(cfg_path=cfg, directory=op.join(path_to_data, 'raw'), validate=True)
+    bidsify(cfg_path=cfg, directory=op.join(path_to_data, 'raw'),
+            validate=True, out_dir=bids_dir)
     rmtree(bids_dir)
     if op.isdir(unall_dir):
         rmtree(unall_dir)

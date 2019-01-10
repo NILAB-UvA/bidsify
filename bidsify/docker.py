@@ -7,7 +7,7 @@ def run_from_docker(cfg, in_dir, out_dir, validate):
 
     cmd = ['docker', 'run', '-it', '--rm', '-v', '%s:/data' % in_dir, '-v',
            '%s:/config.yml:ro' % cfg, '-v', '%s:/bids' % out_dir,
-           'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data']
+           'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data', '-o', '/bids']
 
     if validate:
         cmd.append('-v')

@@ -1,6 +1,3 @@
-bidsconverter/data/PIOP2
-bidsconverter/data/Upgrade
-
 # python cache
 __pycache__/**/*
 __pycache__
@@ -11,12 +8,11 @@ build/**/*
 build
 dist/**/*
 dist
-BidsConverter.egg-info/**/*
-BidsConverter.egg-info
-.eggs/**/*
-.eggs
+bidsify.egg-info
 
 # git
 .gitignore
 .git/**/*
 .git
+
+bidsify/data/test_data
