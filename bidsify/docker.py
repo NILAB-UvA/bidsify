@@ -1,12 +1,16 @@
 from .utils import _run_cmd
+from .version import __version__
 
 
 def run_from_docker(cfg, in_dir, out_dir, validate):
     """ Runs BidsConverter from Docker. """
 
     cmd = ['docker', 'run', '-it', '--rm', '-v', '%s:/data' % in_dir, '-v',
-           '%s:/config.json:ro' % cfg, '-v', '%s:/out' % out_dir,
-           'bidsconverter:latest', '-c', '/config.json', '-d', '/data']
-    cmd = cmd + " -v" if validate else cmd
+           '%s:/config.yml:ro' % cfg, '-v', '%s:/bids' % out_dir,
+           'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data']
+
+    if validate:
+        cmd.append('-v')
+
     print(' '.join(cmd))
     _run_cmd(cmd, verbose=True)

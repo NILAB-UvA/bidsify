@@ -98,21 +98,22 @@ def run_cmd():
                         default=False)
 
     args = parser.parse_args()
+    
     if args.out is None:
         args.out = op.dirname(args.directory)
-
+    
     if args.spinoza:
        args.config_file = op.join(op.dirname(__file__), 'data', 'spinoza_cfg.yml')
 
     if args.docker:
-        run_from_docker(cfg_path=args.config_file, in_dir=args.directory,
+        run_from_docker(cfg=args.config_file, in_dir=args.directory,
                         out_dir=args.out, validate=args.validate)
     else:
         bidsify(cfg_path=args.config_file, directory=args.directory,
-                validate=args.validate)
+                out_dir=args.out, validate=args.validate)
 
 
-def bidsify(cfg_path, directory, validate):
+def bidsify(cfg_path, directory, out_dir, validate):
     """ Converts (raw) MRI datasets to the BIDS-format [1].
 
     Parameters
@@ -121,6 +122,8 @@ def bidsify(cfg_path, directory, validate):
         Path to config-file (either json or YAML file)
     directory : str
         Path to directory with raw data
+    out_dir : str
+        Path to output-directory
     validate : bool
         Whether to run bids-validator on the bids-converted data
 
@@ -138,9 +141,9 @@ def bidsify(cfg_path, directory, validate):
     """
 
     # First, parse the config file
-    cfg = _parse_cfg(cfg_path, directory)
+    cfg = _parse_cfg(cfg_path, directory, out_dir)
     cfg['orig_cfg_path'] = cfg_path
-
+    
     if cfg['options']['debug']:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -163,7 +166,7 @@ def bidsify(cfg_path, directory, validate):
     options = cfg['options']
     out_dir = options['out_dir']
     subject_stem = options['subject_stem']
-
+    
     # Find subject directories
     sub_dirs = sorted(glob(op.join(directory, '%s*' % subject_stem)))
     if not sub_dirs:
@@ -327,7 +330,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         [_deface(f) for f in magn_files]
 
 
-def _parse_cfg(cfg_file, raw_data_dir):
+def _parse_cfg(cfg_file, raw_data_dir, out_dir):
     """ Parses config file and sets defaults. """
 
     if not op.isfile(cfg_file):
@@ -353,13 +356,7 @@ def _parse_cfg(cfg_file, raw_data_dir):
     if 'subject_stem' not in options:
         cfg['options']['subject_stem'] = 'sub'
 
-    if 'out_dir' not in options:
-        out_dir = op.join(op.dirname(raw_data_dir), 'bids')
-        print("Setting out-dir to %s" % out_dir)
-        cfg['options']['out_dir'] = out_dir
-    else:
-        out_dir = cfg['options']['out_dir']
-        cfg['options']['out_dir'] = op.join(op.dirname(raw_data_dir), out_dir)
+    cfg['options']['out_dir'] = out_dir 
 
     if 'spinoza_data' not in options:
         cfg['options']['spinoza_data'] = False
