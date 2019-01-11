@@ -23,7 +23,7 @@ to file-formats specified by BIDS. This tool has been used to
 successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_
 and quality control using the `mriqc <http://mriqc.readthedocs.io>`_ package. Currently, bidsify is "deployed"
 at the Spinoza Centre for Neuroimaging (location REC) to automatically convert data to BIDS after scanning
-(check the `nitools <https://github.com/spinoza-rec/nitools>`_ package to see how we deployed BIDS).
+(check the `nitools <https://github.com/spinoza-rec/nitools>`_ package to see how we deployed ``bidsify``).
 
 This package was originally developed to handle MRI-data from Philips scanners which are traditionally exported
 in the "PAR/REC" format. Currently, ``bidsify`` also supports Philips (enhanced) DICOM (`DICOM`/`DICOMDIR` format) and Siemens DICOM (`.dcm` extension), but this is not fully tested yet! 
@@ -32,6 +32,42 @@ in the "PAR/REC" format. Currently, ``bidsify`` also supports Philips (enhanced)
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
 in the future. If you encounter any issues, please submit an issue or (better yet), submit a pull-request
 with your proposed solution!
+
+Installing ``bidsify`` & dependencies
+---------------------------------------
+This package can be installed using ``pip``:
+
+    $ pip install bidsify
+
+To get the lastest version, you can install the master branch from github:
+
+    $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
+
+In terms of dependencies: ``bidsify`` uses `dcm2niix <https://github.com/rordenlab/dcm2niix>`_
+under the hood to convert PAR/REC and DICOM files to nifti.
+
+Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
+
+- nibabel
+- scipy
+- numpy
+- joblib (for parallelization)
+- pandas
+
+If you want to use the Docker interface (i.e., running ``bidsify`` with the `-D` flag), make sure to install Docker and make sure your user account has permission to run Docker (see below).
+
+Using Docker
+------------
+The current version (master branch) allows you to run `bidsify` from docker, so you don't
+have to install all the (large) dependencies (FSL, pydeface, dcm2niix, etc.). To do so,
+you need to do the following.
+
+1. Install Docker (if you haven't already) and make sure you have permission to run Docker;
+2. Pull the Docker image: ``docker pull lukassnoek/bidsify:0.3``;
+3. Run bidsify with the `-D` flag (e.g., ``bidsify -c /home/user/config.yml -d /home/user/data -D``)
+
+Now you can use ``bidsify`` even without having FSL, dcm2niix, and other dependencies installed!
+(You do need to install ``bidsify`` itself though.)
 
 How does it work?
 -----------------
@@ -45,7 +81,7 @@ The ``-d`` flag defaults to the current working directory.
 
 The ``-v`` flag calls `bids-validator <https://github.com/INCF/bids-validator>`_ after BIDS-conversion (optional).
 
-The ``-D`` flag runs ``bidsify`` from Docker (recommended; see "Docker" section below).
+The ``-D`` flag runs ``bidsify`` from Docker (recommended; see "Docker" section above).
 
 Features
 --------
@@ -361,36 +397,3 @@ Alternatively, if one was use use the DICOM format, it might look like this:
 
 So all raw files should be in a single directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>".
-
-Using Docker
-------------
-The current version (master branch) allows you to run `bidsify` from docker, so you don't
-have to install all the (large) dependencies (FSL, pydeface, dcm2niix, etc.). To do so,
-you need to do the following.
-
-1. Install Docker (if you haven't already) and make sure you have permission to run Docker;
-2. Pull the Docker image: ``docker pull lukassnoek/bidsify:0.3``;
-3. Run bidsify with the `-D` flag (e.g., ``bidsify -c /home/user/config.yml -d /home/user/data -D``)
-
-Now you can use ``bidsify`` even without having FSL, dcm2niix, and other dependencies installed!
-(You do need to install ``bidsify`` itself though.)
-
-Installing ``bidsify`` & dependencies
----------------------------------------
-For now, it can only be installed from Github (no PyPI package yet), either by cloning
-this repository directory (and then ``python setup.py install``) or installing it using ``pip``::
-
-    $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
-
-In terms of dependencies: ``bidsify`` uses `dcm2niix <https://github.com/rordenlab/dcm2niix>`_
-under the hood to convert PAR/REC and DICOM files to nifti.
-
-Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
-
-- nibabel
-- scipy
-- numpy
-- joblib (for parallelization)
-- pandas
-
-If you want to use the Docker interface (i.e., running ``bidsify`` with the `-D` flag), make sure to install Docker and make sure your user account has permission to run Docker.
