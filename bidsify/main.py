@@ -106,7 +106,7 @@ def run_cmd():
         args.config_file = op.join(op.dirname(__file__), 'data', 'spinoza_cfg.yml')
 
     if not op.isfile(args.config_file):
-        raise ValueError("Config-file %s does not exist!")
+        raise ValueError("Config-file %s does not exist!" % args.config_file)
 
     if args.docker:
         run_from_docker(cfg=args.config_file, in_dir=args.directory,
