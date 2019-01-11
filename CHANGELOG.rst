@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+Version 0.3.1
+-------------
+Hotfix pip install.
+
+- FIX: add MANIFEST.in to fix pip install issue
+
 Version 0.3
 -------------
 Version 0.3 of bidsify will be the first release after the major refactor.
