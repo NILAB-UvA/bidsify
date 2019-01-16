@@ -20,6 +20,7 @@ from .docker import run_from_docker
 from .utils import (check_executable, _make_dir, _append_to_json,
                     _run_cmd)
 from .version import __version__
+from ipdb import set_trace
 
 
 __all__ = ['run_cmd', 'bidsify']
@@ -100,7 +101,7 @@ def run_cmd():
     args = parser.parse_args()
     
     if args.out is None:
-        args.out = op.dirname(args.directory)
+        args.out = op.join(op.dirname(args.directory), 'bids')
     
     if args.spinoza:
         args.config_file = op.join(op.dirname(__file__), 'data', 'spinoza_cfg.yml')
@@ -281,7 +282,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # Check which datatypes (dtypes) are available (func, anat, fmap, dwi)
     cfg['data_types'] = [c for c in cfg.keys() if c in DTYPES]
-    _extract_metadata_from_cfg(cfg)
+    cfg = _extract_metadata_from_cfg(cfg)
 
     # Rename and move stuff
     data_dirs = []
@@ -321,6 +322,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
                 os.remove(f)
 
     # ... and extract some extra meta-data
+    print(data_dirs)
     for data_dir in data_dirs:
         _add_missing_BIDS_metadata(data_dir, cfg)
 
@@ -620,6 +622,7 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
     # If there is dtype-specific metadata, append it
     if metadata.get(dtype, None) is not None:
         dtype_metadata.update(metadata[dtype])
+        del dtype_metadata[dtype]
 
     if 'ses-' in op.basename(op.dirname(data_dir)):
         ses2append = op.basename(op.dirname(data_dir))
@@ -744,7 +747,7 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
                         slice_timing = np.linspace(0, this_tr, nr_slices+1)[:-1]
                     slice_timing = slice_timing.tolist()
                     this_metadata.update({'SliceTiming': slice_timing})
-           
+            
             _append_to_json(this_json, this_metadata)
 
 
