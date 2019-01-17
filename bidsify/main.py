@@ -20,7 +20,6 @@ from .docker import run_from_docker
 from .utils import (check_executable, _make_dir, _append_to_json,
                     _run_cmd)
 from .version import __version__
-from ipdb import set_trace
 
 
 __all__ = ['run_cmd', 'bidsify']
@@ -114,7 +113,7 @@ def run_cmd():
           "\t directory=%s \n"
           "\t config=%s \n"
           "\t out_dir=%s \n"
-          "\t validate=%s" % (args.directory, args.config_file, args.out, args.validate))
+          "\t validate=%s\n" % (args.directory, args.config_file, args.out, args.validate))
 
     if args.docker:
         run_from_docker(cfg=args.config_file, in_dir=args.directory,
@@ -155,9 +154,6 @@ def bidsify(cfg_path, directory, out_dir, validate):
     cfg = _parse_cfg(cfg_path, directory, out_dir)
     cfg['orig_cfg_path'] = cfg_path
     
-    if cfg['options']['debug']:
-        logging.basicConfig(level=logging.DEBUG)
-
     # Check whether everything is available
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
@@ -258,7 +254,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         print('Data from %s has been converted already - skipping ...' % sub_name)
         return None
     else:
-        print('Converting data from %s ...' % sub_name)
+        msg = 'Converting data from %s ...' % sub_name
+        if is_sess:
+            msg += ' (%s)' % sess_name
+        print(msg)
 
     # Make dir and copy all files to this dir
     _make_dir(this_out_dir)
@@ -330,7 +329,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
                 os.remove(f)
 
     # ... and extract some extra meta-data
-    print(data_dirs)
     for data_dir in data_dirs:
         _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg)
 
@@ -634,7 +632,8 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
     # Once we extracted the metadata, we should remove it
     # as a 'nested' level in the metadata (e.g., func: {...})
     for this_dtype in ['fmap', 'dwi', 'func', 'anat']:
-        del dtype_metadata[this_dtype]
+        if this_dtype in dtype_metadata.keys():
+            del dtype_metadata[this_dtype]
 
     if 'ses-' in op.basename(op.dirname(data_dir)):
         ses2append = op.basename(op.dirname(data_dir))
