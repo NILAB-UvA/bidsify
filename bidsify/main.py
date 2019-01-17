@@ -26,6 +26,7 @@ from ipdb import set_trace
 __all__ = ['run_cmd', 'bidsify']
 
 DTYPES = ['func', 'anat', 'fmap', 'dwi']
+
 MTYPE_PER_DTYPE = dict(
     func=['bold'],
     anat=['T1w', 'T2w', 'FLAIR'],
@@ -34,7 +35,6 @@ MTYPE_PER_DTYPE = dict(
 )
 
 MTYPE_ORDERS = dict(
-
     T1w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T1w=6),
     T2w=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, T2w=6),
     FLAIR=dict(sub=0, ses=1, acq=2, ce=3, rec=4, run=5, FLAIR=6),
@@ -52,11 +52,12 @@ MTYPE_ORDERS = dict(
 
 # For some reason, people seem to use periods in filenames, so
 # remove all unnecessary 'extensions'
-ALLOWED_EXTS = ['par', 'Par', 'rec', 'Rec', 'nii', 'Ni', 'gz',
-                'Gz', 'dcm', 'Dcm', 'dicom', 'Dicom', 'dicomdir',
-                'Dicomdir', 'pickle', 'json', 'edf', 'log', 'bz2',
-                'tar', 'phy', 'cPickle', 'pkl', 'jl', 'tsv', 'csv',
-                'txt', 'bval', 'bvec']
+ALLOWED_EXTS = [
+    'par', 'Par', 'rec', 'Rec', 'nii', 'Ni', 'gz', 'Gz', 'dcm',
+    'Dcm', 'dicom', 'Dicom', 'dicomdir', 'Dicomdir', 'pickle',
+    'json', 'edf', 'log', 'bz2', 'tar', 'phy', 'cPickle', 'pkl',
+    'jl', 'tsv', 'csv', 'txt', 'bval', 'bvec'
+]
 ALLOWED_EXTS.extend([s.upper() for s in ALLOWED_EXTS])
 
 
@@ -108,6 +109,12 @@ def run_cmd():
 
     if not op.isfile(args.config_file):
         raise ValueError("Config-file %s does not exist!" % args.config_file)
+
+    print("Running bidsify with the following arguments:\n"
+          "\t directory=%s \n"
+          "\t config=%s \n"
+          "\t out_dir=%s \n"
+          "\t validate=%s" % (args.directory, args.config_file, args.out, args.validate))
 
     if args.docker:
         run_from_docker(cfg=args.config_file, in_dir=args.directory,
@@ -180,7 +187,7 @@ def bidsify(cfg_path, directory, out_dir, validate):
 
     # Process directories of each subject
     for sub_dir in sub_dirs:
-        _process_directory(sub_dir, out_dir, cfg)
+        _process_directory(sub_dir, out_dir, cfg, is_sess=False)
 
     # Write example description_dataset.json to disk
     desc_json = op.join(op.dirname(__file__), 'data',
@@ -231,7 +238,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
                                    op.basename(op.dirname(cdir)))
         sess_name = op.basename(cdir)
         this_out_dir = op.join(out_dir, sub_name, sess_name)
-        print("... processing session '%s'" % sess_name)
     else:
         sub_name = _extract_sub_nr(options['subject_stem'], op.basename(cdir))
         this_out_dir = op.join(out_dir, sub_name)
@@ -242,9 +248,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     if sess_dirs:
         # Recursive call to _process_directory
-        [_process_directory(sess_dir, out_dir, cfg, is_sess=True)
-         for sess_dir in sess_dirs]
-        return None
+        for sess_dir in sess_dirs:
+            _process_directory(sess_dir, out_dir, cfg, is_sess=True)
+
+        return None  # break out of recursive function
 
     already_exists = op.isdir(this_out_dir)
     if already_exists:
@@ -314,6 +321,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         else:
             unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
         _make_dir(unall_dir)
+
         for f in unallocated:
             # only move if doesn't exist already
             if not op.isfile(op.join(unall_dir, op.basename(f))):
@@ -324,7 +332,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # ... and extract some extra meta-data
     print(data_dirs)
     for data_dir in data_dirs:
-        _add_missing_BIDS_metadata(data_dir, cfg)
+        _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg)
 
     # Deface the anatomical data
     if options['deface']:
@@ -521,7 +529,7 @@ def _rename(cdir, dtype, sub_name, cfg):
         if not files:
             print("Could not find files for element %s (dtype %s) with "
                   "identifier '%s'" % (elem, dtype, idf))
-            return None
+            continue
         else:
             data_dir = _make_dir(dtype_out_dir)
 
@@ -607,7 +615,7 @@ def _rename(cdir, dtype, sub_name, cfg):
     return data_dir
 
 
-def _add_missing_BIDS_metadata(data_dir, cfg):
+def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
 
     # Get metadata dict
     metadata, mappings = cfg['metadata'], cfg['mappings']
@@ -622,7 +630,11 @@ def _add_missing_BIDS_metadata(data_dir, cfg):
     # If there is dtype-specific metadata, append it
     if metadata.get(dtype, None) is not None:
         dtype_metadata.update(metadata[dtype])
-        del dtype_metadata[dtype]
+
+    # Once we extracted the metadata, we should remove it
+    # as a 'nested' level in the metadata (e.g., func: {...})
+    for this_dtype in ['fmap', 'dwi', 'func', 'anat']:
+        del dtype_metadata[this_dtype]
 
     if 'ses-' in op.basename(op.dirname(data_dir)):
         ses2append = op.basename(op.dirname(data_dir))
