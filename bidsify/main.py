@@ -228,6 +228,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     """ Main workhorse of bidsify """
 
     options = cfg['options']
+    n_cores = options['n_cores']
 
     if is_sess:
         sub_name = _extract_sub_nr(options['subject_stem'],
@@ -261,7 +262,14 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
 
     # Make dir and copy all files to this dir
     _make_dir(this_out_dir)
-    all_files = sorted(glob(op.join(cdir, '*')))
+    all_files = sorted([f for f in glob(op.join(cdir, '*')) if op.isfile(f)])
+
+    if not all_files:
+        all_files = sorted([f for f in glob(op.join(cdir, '*', '*')) if op.isfile(f)])
+
+    if not all_files:
+        return None
+
     for f in all_files:
         dst = os.path.join(this_out_dir, op.basename(f))
         if os.path.isdir(f):
@@ -300,7 +308,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # 2. Transform PHYS (if any)
     if cfg['mappings']['physio'] is not None:
         idf = cfg['mappings']['physio']
-        n_cores = cfg['options']['n_cores']
         phys = sorted(glob(op.join(this_out_dir, '*', '*%s*' % idf)))
         Parallel(n_jobs=n_cores)(delayed(convert_phy)(f) for f in phys)
 
@@ -335,10 +342,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # Deface the anatomical data
     if options['deface']:
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
-        [_deface(f) for f in anat_files]
-
         magn_files = glob(op.join(this_out_dir, 'fmap', '*magnitude*.nii.gz'))
-        [_deface(f) for f in magn_files]
+        to_deface = anat_files + magn_files
+        Parallel(n_jobs=n_cores)(delayed(_deface)(f) for f in to_deface)
 
 
 def _parse_cfg(cfg_file, raw_data_dir, out_dir):
@@ -378,7 +384,6 @@ def _parse_cfg(cfg_file, raw_data_dir, out_dir):
     if cfg['options']['deface'] and 'FSLDIR' not in os.environ.keys():
         warnings.warn("Cannot deface because FSL is not installed ...")
         cfg['options']['deface'] = False
-
     # Check if nipype/pydeface is installed; if not, deface = False
     if cfg['options']['deface']:
         try:
