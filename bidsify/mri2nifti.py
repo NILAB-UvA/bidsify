@@ -49,8 +49,10 @@ def convert_mri(directory, cfg):
 
         xx_files = glob(op.join(directory, 'XX_????'))
         _ = [os.remove(f) for f in xx_files]
+    elif mri_ext == 'nifti':
+        pass
     else:
-        raise ValueError('Please select either PAR or DICOM for mri_ext!')
+        raise ValueError('Please select either PAR, dcm, DICOM or nifti for mri_ext!')
 
     niis = glob(op.join(directory, '*.nii'))
     if compress:
