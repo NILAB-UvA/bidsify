@@ -357,6 +357,13 @@ def _parse_cfg(cfg_file, raw_data_dir, out_dir):
     with open(cfg_file) as config:
         cfg = yaml.load(config)
 
+    # Set mappings to None if not present
+    for mtype in MTYPE_ORDERS.keys():
+
+        if mtype not in cfg['mappings'].keys():
+            # Set non-existing mappings to None
+            cfg['mappings'][mtype] = None
+
     options = cfg['options'].keys()
 
     if 'mri_ext' not in options:
@@ -379,11 +386,12 @@ def _parse_cfg(cfg_file, raw_data_dir, out_dir):
         cfg['options']['spinoza_data'] = False
 
     if 'deface' not in options:
-        cfg['options']['deface'] = False
+        cfg['options']['deface'] = True
 
     if cfg['options']['deface'] and 'FSLDIR' not in os.environ.keys():
         warnings.warn("Cannot deface because FSL is not installed ...")
         cfg['options']['deface'] = False
+    
     # Check if nipype/pydeface is installed; if not, deface = False
     if cfg['options']['deface']:
         try:
@@ -471,22 +479,6 @@ def _extract_metadata_from_cfg(cfg):
             # Set specific dtype metadata
             metadata[dtype] = cfg[dtype]['metadata']
             del cfg[dtype]['metadata']
-
-        for element in cfg[dtype].keys():
-
-            if 'metadata' in cfg[dtype][element].keys():
-
-                if metadata.get(dtype, None) is not None:
-                    metadata[dtype][element] = cfg[dtype][element]['metadata']
-                else:
-                    metadata.update({dtype: {element: cfg[dtype][element]['metadata']}})
-                del cfg[dtype][element]['metadata']
-
-    for mtype in MTYPE_ORDERS.keys():
-
-        if mtype not in cfg['mappings'].keys():
-            # Set non-existing mappings to None
-            cfg['mappings'][mtype] = None
 
     cfg['metadata'] = metadata
     return cfg
@@ -629,18 +621,14 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
     dtype = op.basename(data_dir)
 
     # Start with common metadata ("toplevel")
-    dtype_metadata = copy(metadata)
+    common_metadata = {key: value for key, value in metadata.items()
+                       if not isinstance(value, dict)}
 
     # If there is dtype-specific metadata, append it
     if metadata.get(dtype, None) is not None:
-        dtype_metadata.update(metadata[dtype])
+        common_metadata.update(metadata.get(dtype))
 
-    # Once we extracted the metadata, we should remove it
-    # as a 'nested' level in the metadata (e.g., func: {...})
-    for this_dtype in ['fmap', 'dwi', 'func', 'anat']:
-        if this_dtype in dtype_metadata.keys():
-            del dtype_metadata[this_dtype]
-
+    # Used later for the IntendedFor field
     if 'ses-' in op.basename(op.dirname(data_dir)):
         ses2append = op.basename(op.dirname(data_dir))
     else:
@@ -649,22 +637,14 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
     # Now loop over ftypes ('filetypes', e.g. bold, physio, etc.)
     for mtype in mappings.keys():
 
-        # Copy common dtype metadata
-        mtype_metadata = copy(dtype_metadata)
-
-        # Check if specific ftype metadata exists and, if so, append it
-        if dtype in metadata.keys():
-            if metadata[dtype].get(mtype, None) is not None:
-                mtype_metadata.update(metadata[dtype][mtype])
-
         if dtype == 'fmap' and mtype == 'phasediff':
             # Find 'bold' files, needed for IntendedFor field of fmaps,
             # assuming a single phasediff file for all bold-files
             func_files = glob(op.join(op.dirname(data_dir),
                                       'func', '*_bold.nii.gz'))
 
-            mtype_metadata['IntendedFor'] = [op.join(ses2append, 'func', op.basename(f))
-                                             for f in func_files]
+            common_metadata['IntendedFor'] = [op.join(ses2append, 'func', op.basename(f))
+                                              for f in func_files]
 
         # Find relevant jsons
         jsons = glob(op.join(data_dir, '*_%s.json' % mtype))
@@ -678,7 +658,7 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                 acqtype = None
 
             # this_metadata refers to metadata meant for current json
-            this_metadata = copy(mtype_metadata)
+            current_metadata = copy(common_metadata)
             if 'spinoza_metadata' in cfg.keys():
                 # Append spinoza metadata to current json according to dtype
                 # (anat, func, etc.) and mtype (phasediff, bold, etc.)
@@ -696,7 +676,7 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                     else:
                         # if there is no metadata, just append an empty dict
                         tmp_metadata = dict()
-                    this_metadata.update(tmp_metadata)
+                    current_metadata.update(tmp_metadata)
 
             if mtype == 'epi':
 
@@ -722,11 +702,11 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
 
                     cbold = op.basename(cbold[0])
                     int_for = op.join(ses2append, 'func', cbold)
-                this_metadata['IntendedFor'] = int_for
+                current_metadata['IntendedFor'] = int_for
 
             if mtype == 'bold':
                 task_name = fbase.split('task-')[1].split('_')[0]
-                this_metadata.update({'TaskName': task_name})
+                current_metadata.update({'TaskName': task_name})
 
                 # Slicetiming info. Note: we assume ascending order!
                 with open(this_json, 'r') as to_read:
@@ -737,14 +717,12 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                 else:
                     sed = 'none'
                 
-                if 'SliceEncodingDirection' in this_metadata.keys():
-                    sed = this_metadata['SliceEncodingDirection']
+                if 'SliceEncodingDirection' in current_metadata.keys():
+                    sed = current_metadata['SliceEncodingDirection']
                 else:
                     sed = 'none'
                 
-                if sed != 'k':
-                    warnings.warn("Cannot set slice-timing if SliceTimingDirection is not 'k'!")                   
-                else:
+                if 'spinoza_metadata' in cfg.keys():
                     this_tr = this_json_opened['RepetitionTime']
                     corresp_func = this_json.replace('.json', '.nii.gz')
                     nr_slices = nib.load(corresp_func).header.get_data_shape()[2]
@@ -753,7 +731,7 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                     else:
                         mb_factor = 0
                     
-                    if 'MultibandAccelerationFactor' in this_metadata.keys():
+                    if 'MultibandAccelerationFactor' in current_metadata.keys():
                         mb_factor = int(this_metadata['MultibandAccelerationFactor'])
                     else:
                         mb_factor = 0
@@ -762,10 +740,11 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                         slice_timing = np.tile(np.linspace(0, this_tr, int(nr_slices/mb_factor)+1)[:-1], mb_factor)
                     else:
                         slice_timing = np.linspace(0, this_tr, nr_slices+1)[:-1]
+
                     slice_timing = slice_timing.tolist()
-                    this_metadata.update({'SliceTiming': slice_timing})
+                    current_metadata.update({'SliceTiming': slice_timing})
             
-            _append_to_json(this_json, this_metadata)
+            _append_to_json(this_json, current_metadata)
 
 
 def _reorient_mri(directory):
