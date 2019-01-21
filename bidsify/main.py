@@ -492,6 +492,7 @@ def _rename(cdir, dtype, sub_name, cfg):
 
     # Define out-Directory
     dtype_out_dir = op.join(cdir, dtype)  # e.g. sub-01/ses-01/anat
+    data_dir = None
 
     # The number of coherent elements for a given data-type (e.g. runs in
     # bold-fmri, or different T1 acquisitions for anat) ...
