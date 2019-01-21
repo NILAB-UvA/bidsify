@@ -732,7 +732,7 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                         mb_factor = 0
                     
                     if 'MultibandAccelerationFactor' in current_metadata.keys():
-                        mb_factor = int(this_metadata['MultibandAccelerationFactor'])
+                        mb_factor = int(current_metadata['MultibandAccelerationFactor'])
                     else:
                         mb_factor = 0
 
