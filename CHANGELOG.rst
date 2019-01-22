@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+Version 0.3.2 (upcoming)
+------------------------
+Bugfixes + some added functionality.
+
+- ENH: simplify metadata structure
+- ENH: fix PAR headers of manually stopped scans (remove partial volumes)
+
 Version 0.3.1
 -------------
 Hotfix pip install.
