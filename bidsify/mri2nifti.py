@@ -6,6 +6,7 @@ from glob import glob
 from .utils import check_executable, _compress, _run_cmd
 from shutil import rmtree
 
+
 PIGZ = check_executable('pigz')
 
 
@@ -101,7 +102,7 @@ def _fix_header_manually_stopped_scan(par):
     for line in lines:
         found = 'Max. number of slices/locations' in line
         if found:
-            n_slices = line.split(':')[-1].strip().replace('\n', '')
+            n_slices = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
     if not found:
@@ -111,48 +112,44 @@ def _fix_header_manually_stopped_scan(par):
     for line_nr_of_dyns, line in enumerate(lines):
         found = 'Max. number of dynamics' in line
         if found:
-            n_dyns = line.split(':')[-1].strip().replace('\n', '')
+            n_dyns = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
     if int(n_dyns) == 1:
+        # Not an fMRI file! skip
         return
 
     if not found:
         raise ValueError("Could not determine number of slices from PAR header (%s)!" % par)
-    
-    skip_rows_eof = 2
-    last_slice_nr = [char for char in lines[-(1+skip_rows_eof)].split(' ') if char][0]
-    if not last_slice_nr == n_slices:
-        warnings.warn("Number of slices not equal to expected number; "
-                      "Scan probably manually stopped. Attempt to fix it ...")
-
-        lines_to_drop = []
-        for i, line in enumerate(lines[::-1][skip_rows_eof:]):
-            slc = [char for char in line.split(' ') if char][0]
-            if slc != n_slices:
-                #print("Dropping %s" % (line))
-                lines_to_drop.append(line)
-            else:
-               break
-
-        for to_drop in lines_to_drop:
-            lines.pop(lines.index(to_drop))
 
     found = False
-    for line_nr_of_start_slices, line in enumerate(lines):
+    for idx_start_slices, line in enumerate(lines):
         found = '# === IMAGE INFORMATION =' in line
         if found:
-            line_nr_of_start_slices += 2
+            idx_start_slices += 3
             break
+
+    idx_stop_slices = len(lines) - 2
+    slices = lines[idx_start_slices:idx_stop_slices]
+    actual_n_dyns = len(slices) / n_slices
     
-    slice_lines = lines[line_nr_of_start_slices:-(skip_rows_eof+1)]
-    actual_dyns = len(slice_lines) / int(n_slices)
+    if actual_n_dyns != n_dyns:
+        print("Found %.3f dyns (%i slices) for file %s, but expected %i dyns (%i slices);"
+              " going to try to fix it by removing slices from the PAR header ..." %
+              (actual_n_dyns, len(slices), op.basename(par), n_dyns, n_dyns*n_slices))
 
-    if actual_dyns != int(n_dyns):
-        warnings.warn("Number of dynamics in PAR-file %s (%s) do not match actual "
-                      "dynamics (%i); fixing this ..." % (par, n_dyns, actual_dyns))
-        lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(n_dyns, str(int(actual_dyns)))
+        lines_to_remove = (len(slices) % n_slices) + 1
+        if lines_to_remove != 0:
+            for i in range(lines_to_remove):
+                lines.pop(idx_stop_slices - i)                
 
-    with open(par, 'w') as f_out:
-        [f_out.write(line) for line in lines]
+            slices = lines[idx_start_slices:(idx_stop_slices - lines_to_remove)]
+            actual_n_dyns = len(slices) / n_slices
+
+        # Replacing expected with actual number of dynamics
+        lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
+                                                                str(actual_n_dyns))
+
+        with open(par, 'w') as f_out:
+            [f_out.write(line) for line in lines]
 
