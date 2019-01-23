@@ -175,7 +175,9 @@ def bidsify(cfg_path, directory, out_dir, validate):
     subject_stem = options['subject_stem']
     
     # Find subject directories
-    sub_dirs = sorted(glob(op.join(directory, '%s*' % subject_stem)))
+    sub_dirs = [d for d in sorted(glob(op.join(directory, '%s*' % subject_stem)))
+                if op.isdir(d)]
+
     if not sub_dirs:
         msg = ("Could not find subject dirs in directory %s with subject stem "
                "'%s'." % (directory, subject_stem))
@@ -577,6 +579,11 @@ def _rename(cdir, dtype, sub_name, cfg):
             # Small hack to fix topups ('task' is not allowed; 'dir' is)
             if 'task' in these_kv_pairs.keys() and mtype == 'epi':
                 these_kv_pairs['dir'] = these_kv_pairs.pop('task')
+
+            if mtype == 'physio' and '.edf' in f:  # eyedata
+                these_kv_pairs['recording'] = 'eyetracker'
+            elif mtype == 'physio' and not '.edf' in f:  # ppu/resp
+                these_kv_pairs['recording'] = 'respcardiac'
 
             # Sort kv-pairs using MTYPE_ORDERS
             this_order = MTYPE_ORDERS[mtype]
