@@ -1,8 +1,8 @@
 CHANGELOG
 =========
 
-Version 0.3.2 (upcoming)
-------------------------
+Version 0.3.2
+-------------
 Bugfixes + some added functionality.
 
 - ENH: simplify metadata structure
