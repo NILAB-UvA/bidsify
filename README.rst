@@ -15,18 +15,13 @@
 .. image:: https://img.shields.io/badge/python-3.6-blue.svg
     :target: https://www.python.org/downloads/release/python-360
 
-This package offers a tool to convert your raw (f)MRI data to the
-"Brain Imaging Data Structuce" (BIDS_) format. Using only a
-simple (json or yaml) config-file, it renames, reformats, and restructures
-your files such that it fits the BIDS naming scheme and conforms
-to file-formats specified by BIDS. This tool has been used to
-successfully convert datasets for preprocessing using `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_
-and quality control using the `mriqc <http://mriqc.readthedocs.io>`_ package. Currently, bidsify is "deployed"
-at the Spinoza Centre for Neuroimaging (location REC) to automatically convert data to BIDS after scanning
-(check the `nitools <https://github.com/spinoza-rec/nitools>`_ package to see how we deployed ``bidsify``).
+This package offers a tool to convert your raw (f)MRI data to the "Brain Imaging Data Structuce" (BIDS_) format. Using only a simple (json or yaml) config-file, it renames, reformats, and restructures your files such that it fits the BIDS naming scheme and conforms to file-formats specified by BIDS. After using ``bidsify``, you can run your data through BIDS-compatible analysis/preprocessing pipelines such as `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_
+and `mriqc <http://mriqc.readthedocs.io>`_ package.
 
-This package was originally developed to handle MRI-data from Philips scanners which are traditionally exported
-in the "PAR/REC" format. Currently, ``bidsify`` also supports Philips (enhanced) DICOM (`DICOM`/`DICOMDIR` format) and Siemens DICOM (`.dcm` extension), but this is not fully tested yet! 
+Currently, we use ``bidsify`` at the Spinoza Centre for Neuroimaging (location REC) to convert data to BIDS after each scan-session. We automated this process, including automatic preprocessing and quality control, using another package, `nitools <https://github.com/spinoza-rec/nitools>`_ (which essentially "glues together" ``bidsify``, ``fmriprep``, and ``mriqc``). 
+
+This package was originally developed to handle MRI-data from Philips scanners, which are traditionally exported
+in the "PAR/REC" format. Currently, ``bidsify`` also supports Philips (enhanced) DICOM (``DICOM``/``DICOMDIR`` format) and Siemens DICOM (``.dcm`` extension), but the latter has not been fully tested yet! 
 
 ``bidsify`` is still very much in development, so there are probably still some bugs for data
 that differs from our standard format (at the Spinoza Centre in Amsterdam) and the API might change
@@ -35,18 +30,18 @@ with your proposed solution!
 
 Installing ``bidsify`` & dependencies
 ---------------------------------------
-This package can be installed using ``pip``:
+This package can be installed using ``pip``::
 
     $ pip install bidsify
 
-To get the lastest version, you can install the master branch from github:
+To get the "bleeding edge" version, you can install the master branch from github::
 
     $ pip install git+https://github.com/spinoza-rec/bidsify.git@master
 
 In terms of dependencies: ``bidsify`` uses `dcm2niix <https://github.com/rordenlab/dcm2niix>`_
-under the hood to convert PAR/REC and DICOM files to nifti.
+under the hood to convert PAR/REC and DICOM files to nifti. Make sure you're using release `v1.0.20181125 <https://github.com/rordenlab/dcm2niix/releases/tag/v1.0.20181125>`_ or newer.
 
-Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
+Apart from ``dcm2niix``, ``bidsify`` depends on the following Python packages:
 
 - nibabel
 - scipy
@@ -54,16 +49,18 @@ Apart from dcm2niix, ``bidsify`` depends on the following Python packages:
 - joblib (for parallelization)
 - pandas
 
-If you want to use the Docker interface (i.e., running ``bidsify`` with the `-D` flag), make sure to install Docker and make sure your user account has permission to run Docker (see below).
+Moreover, if you want to use the defacing option (i.e., removing facial features from anatomical images), make sure you have `FSL <https://fsl.fmrib.ox.ac.uk>`_ installed, as well as the `pydeface <https://github.com/poldracklab/pydeface>`_ Python package. Also, to enable validating the BIDS-conversion process,(i.e., running ``bidsify`` with the ``-v`` flag), make sure to install `bids-validator <https://github.com/bids-standard/bids-validator>`_. 
+
+Lastly, if you want to use the Docker interface (i.e., running ``bidsify`` with the `-D` flag), which obviates the need for installing dcm2niix/FSL/bids-validator, make sure to install Docker and make sure your user account has permission to run Docker (see below).
 
 Using Docker
 ------------
-The current version (master branch) allows you to run `bidsify` from docker, so you don't
-have to install all the (large) dependencies (FSL, pydeface, dcm2niix, etc.). To do so,
+The current version (master branch) allows you to run ``bidsify`` from docker, so you don't
+have to install all the (large) dependencies (FSL, pydeface, dcm2niix, bids-validator, etc.). To do so,
 you need to do the following.
 
 1. Install Docker (if you haven't already) and make sure you have permission to run Docker;
-2. Pull the Docker image: ``docker pull lukassnoek/bidsify:0.3``;
+2. Pull the Docker image: ``docker pull lukassnoek/bidsify:0.x.x`` (fill in the latest version at the x.x);
 3. Run bidsify with the `-D` flag (e.g., ``bidsify -c /home/user/config.yml -d /home/user/data -D``)
 
 Now you can use ``bidsify`` even without having FSL, dcm2niix, and other dependencies installed!
@@ -73,15 +70,35 @@ How does it work?
 -----------------
 After installing, the ``bidsify`` command can be called as follows::
 
-    $ bidsify [-c config_file] [-d path_to_data_directory] [-v] [-D]
+    $ bidsify [-c config_file] [-d path_to_data_directory] [-o output_directory] [-v] [-D]
 
 The ``-c`` flag defaults to ``config.yml`` in the current working directory.
 
 The ``-d`` flag defaults to the current working directory.
 
+The ``-o`` flag defaults to the parent-directory of the data-directory.
+
 The ``-v`` flag calls `bids-validator <https://github.com/INCF/bids-validator>`_ after BIDS-conversion (optional).
 
 The ``-D`` flag runs ``bidsify`` from Docker (recommended; see "Docker" section above).
+
+For example, if you would call the following command ... ::
+
+    $ bidsify -c /home/user/data/config.yml -d /home/user/data
+
+... your bidsified data will be in the following location::
+
+    /home/user
+            ├── data
+            |   ├── config.yml
+            |   ├── s01
+            |   └── s02
+            |
+            └── bids
+                ├── dataset_description.json
+                ├── participants.tsv
+                ├── sub-01
+                └── sub-02
 
 Features
 --------
@@ -119,13 +136,13 @@ is the `"options"` section. An example of this section could be:
 .. code-block:: yaml
 
     options:
-        mri_ext: PAR  # alternatives: DICOM, dcm
-        debug: False
-        n_cores: -1
-        subject_stem: sub
-        deface: True
-        spinoza_data: True
-        out_dir: bids
+      mri_ext: PAR  # alternatives: DICOM, dcm
+      debug: False
+      n_cores: -1
+      subject_stem: sub
+      deface: True
+      spinoza_data: True
+      out_dir: bids
 
 No options *need* to be set explicitly as they all have sensible defaults.
 The attribute-value pairs mean the following:
@@ -154,18 +171,18 @@ a mappings section like this:
 .. code-block:: yaml
 
     options:
-        # ............. #
+      # ............. #
        
     mappings:
-        bold: _func
-        T1w: 3DT1
-        dwi: DWI
-        physio: ppuresp
-        events: log
-        phasediff: _ph
-        magnitude: _mag
-        epi: topup
-        T2w: T2w
+      bold: _func
+      T1w: 3DT1
+      dwi: DWI
+      physio: ppuresp
+      events: log
+      phasediff: _ph
+      magnitude: _mag
+      epi: topup
+      T2w: T2w
 
 Note that *every file should belong to one, and only one, file-type*! In other words, ``bidsify`` should be able to figure out what kind of file it's dealing with from the filename. For example, if you have a file named ``my_mri_file.PAR`` and you have configured the mappings as in the example above, ``bidsify`` won't be able to figure out what file-type it's dealing with (a ``bold`` file? A ``T1w`` file?), because the filename does not contain *any* of the mappings (e.g., ``_func``, ``3DT1``, or ``DWI``).
 
@@ -184,15 +201,15 @@ parameters. For example, you could specify the data of conversion here, if you'd
 .. code-block:: yaml
 
     options:
-        # some options
+      # some options
         
     mappings:
-        # some mappings
+      # some mappings
         
     metadata:
-        MagneticFieldStrength: 3
-        ParallelAcquisitionTechnique: SENSE
-        InstitutionName: Spinoza Centre for Neuroimaging, location REC
+      MagneticFieldStrength: 3
+      ParallelAcquisitionTechnique: SENSE
+      InstitutionName: Spinoza Centre for Neuroimaging, location REC
 
 The ``func``, ``anat``, ``dwi``, and ``fmap`` sections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,20 +225,20 @@ section could look like:
 .. code-block:: yaml
 
     options:
-        # some options
+      # some options
         
     mappings:
-        # some mappings
+      # some mappings
 
     func:
 
       wm-task:
-         id: wmtask
-         task: workingmemory
+        id: wmtask
+        task: workingmemory
 
       nback-task:
-         id: nbacktask
-         task: nback
+        id: nbacktask
+        task: nback
 
 The exact naming of the "attributes" (here: ``wm-task`` and ``nback-task``) of the sub-sections
 do not matter, but the subsequent key-value pairs *do* matter. You *always* need to set the ``id``
@@ -241,36 +258,36 @@ The config-file should, in that case, look like:
 .. code-block:: yaml
 
     options:
-        # some options
+      # some options
         
     mappings:
-        # some mappings
+      # some mappings
 
     func:
 
       nback-task1:
-          id: nback1
-          task: nback
-          run: 1
-          acq: sequential
+        id: nback1
+        task: nback
+        run: 1
+        acq: sequential
 
       nback-task2:
-          id: nback1
-          task: nback
-          run: 2
-          acq: sequential
+        id: nback1
+        task: nback
+        run: 2
+        acq: sequential
 
       nback-task3:
-          id: nback3
-          task: nback
-          run: 3
-          acq: multiband
+        id: nback3
+        task: nback
+        run: 3
+        acq: multiband
 
       nback-task4:
-          id: nback4
-          task: nback
-          run: 4
-          acq: multiband
+        id: nback4
+        task: nback
+        run: 4
+        acq: multiband
 
 ``bidsify`` will then create four files (assuming that they can be "found" using their corresponding ``id``s):
 
@@ -285,20 +302,20 @@ two T1-weighted structural scans, the "anat" section could look like:
 .. code-block:: yaml
 
     options:
-        # some options
+      # some options
         
     mappings:
-        # some mappings
+      # some mappings
 
     anat:
-
-        firstT1:
-            id: 3DT1_1
-            run: 1
+    
+      firstT1:
+        id: 3DT1_1
+        run: 1
 
         secondT1:
-            id: 3DT1_2
-            run: 2
+          id: 3DT1_2
+          run: 2
 
 Importantly, any UNIX-style wildcard (e.g. \*, ?, and [a,A,1-9]) can be used in the
 ``id`` values in these sections!
@@ -320,80 +337,57 @@ datatype section. For example, to do so for the previous examples:
 .. code-block:: yaml
 
     func:
+    
+      metadata:
+        EffectiveEchoSpacing: 0.00365
+        PhaseEncodingDirection: "j"
 
-        metadata:
-
-         EffectiveEchoSpacing: 0.00365
-         PhaseEncodingDirection: "j"
-
-        nback:
-
-            id: nback
-            task: nback
+      nback:
+        id: nback
+        task: nback
 
     fmap:
+    
+      metadata:
+        EchoTime1: 0.003
+        EchoTime2: 0.008
 
-        metadata:
-
-            EchoTime1: 0.003
-            EchoTime2: 0.008
-
-        B0: 
-         
-         id: B0
+      B0: 
+        id: B0
 
 How to use ``bidsify``
 ----------------------
 After installing this package, the ``bidsify`` command should be available.
 This command assumes a specific organization of your directory with raw data.
 Below, I outlined the assumed structure for a simple dataset with one BOLD run and one T1-weighted scan across
-two sessions:
+two sessions::
 
-- sub-01
+    /home/user/data/
+                ├── config.yml
+                ├── sub-01
+                │   ├── ses-1
+                │   │   ├── boldrun1.PAR
+                │   │   ├── boldrun1.REC
+                │   │   ├── T1.PAR
+                │   │   └── T1.REC
+                │   └── ses-2
+                │       ├── boldrun1.PAR
+                │       ├── boldrun1.REC
+                │       ├── T1.PAR
+                │       └── T1.REC
+                └── sub-02
+                    ├── ses-1
+                    │   ├── boldrun1.PAR
+                    │   ├── boldrun1.REC
+                    │   ├── T1.PAR
+                    │   └── T1.REC
+                    └── ses-2
+                        ├── boldrun1.PAR
+                        ├── boldrun1.REC
+                        ├── T1.PAR
+                        └── T1.REC
 
-  - ses-01
+(If you have DICOM-files with the ``.dcm`` extension, just replace the PAR/REC files with a single `dcm` file.)
 
-    - boldrun1.PAR
-    - boldrun1.REC
-    - T1.PAR
-    - T1.REC
-
-  - ses-02
-
-    - boldrun1.PAR
-    - boldrun1.REC
-    - T1.PAR
-    - T1.REC
-
-- sub-02
-
-  - ses-01
-
-    - boldrun1.PAR
-    - boldrun1.REC
-    - T1.PAR
-    - T1.REC
-
-  - ses-02
-
-    - boldrun1.PAR
-    - boldrun1.REC
-    - T1.PAR
-    - T1.REC
-
-Alternatively, if one was use use the DICOM format, it might look like this:
-
-- sub-01
-
-  - ses-01
-  
-    - DICOM
-    - DICOMDIR
-        
-  - ses-02
-
-    - DICOM
-    - DICOMDIR
-
-So all raw files should be in a single directory, which can be the subject-directory or, optionally,
+So all raw files should be in a **single** directory, which can be the subject-directory or, optionally,
 a session-directory. **Note**: the session directory **must** be named "ses-<something>".
