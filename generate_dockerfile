@@ -1,3 +1,4 @@
+#!/bin/bash
 docker run --rm kaczmarj/neurodocker:0.4.3 generate docker \
            --base debian:stretch --pkg-manager apt \
            --install git \

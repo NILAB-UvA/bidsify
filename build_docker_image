@@ -1,0 +1,2 @@
+#!/bin/bash
+docker build -t lukassnoek/bidsify:$1 -t lukassnoek/bidsify:latest .
