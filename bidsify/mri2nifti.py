@@ -132,7 +132,7 @@ def _fix_header_manually_stopped_scan(par):
     idx_stop_slices = len(lines) - 2
     slices = lines[idx_start_slices:idx_stop_slices]
     actual_n_dyns = len(slices) / n_slices
-    
+
     if actual_n_dyns != n_dyns:
         print("Found %.3f dyns (%i slices) for file %s, but expected %i dyns (%i slices);"
               " going to try to fix it by removing slices from the PAR header ..." %
@@ -145,6 +145,9 @@ def _fix_header_manually_stopped_scan(par):
 
             slices = lines[idx_start_slices:(idx_stop_slices - lines_to_remove)]
             actual_n_dyns = len(slices) / n_slices
+            if not actual_n_dyns.is_integer():
+                print("Couldn't fix PAR header (probably a dropped frame)")
+                return 
 
         # Replacing expected with actual number of dynamics
         lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
