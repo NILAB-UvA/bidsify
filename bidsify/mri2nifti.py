@@ -6,7 +6,6 @@ from glob import glob
 from .utils import check_executable, _compress, _run_cmd
 from shutil import rmtree
 
-
 PIGZ = check_executable('pigz')
 
 
@@ -115,7 +114,7 @@ def _fix_header_manually_stopped_scan(par):
             n_dyns = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
-    if int(n_dyns) == 1:
+    if n_dyns == 1:
         # Not an fMRI file! skip
         return
 
@@ -132,26 +131,27 @@ def _fix_header_manually_stopped_scan(par):
     idx_stop_slices = len(lines) - 2
     slices = lines[idx_start_slices:idx_stop_slices]
     actual_n_dyns = len(slices) / n_slices
-
+    #set_trace()
     if actual_n_dyns != n_dyns:
         print("Found %.3f dyns (%i slices) for file %s, but expected %i dyns (%i slices);"
               " going to try to fix it by removing slices from the PAR header ..." %
               (actual_n_dyns, len(slices), op.basename(par), n_dyns, n_dyns*n_slices))
 
-        lines_to_remove = (len(slices) % n_slices) + 1
+        lines_to_remove = len(slices) % n_slices
         if lines_to_remove != 0:
+            #set_trace()
             for i in range(lines_to_remove):
-                lines.pop(idx_stop_slices - i)                
+                lines.pop(idx_stop_slices - (i+1))                
 
             slices = lines[idx_start_slices:(idx_stop_slices - lines_to_remove)]
             actual_n_dyns = len(slices) / n_slices
             if not actual_n_dyns.is_integer():
-                print("Couldn't fix PAR header (probably a dropped frame)")
+                print("Couldn't fix PAR header (probably multiple randomly dropped frames)")
                 return 
 
         # Replacing expected with actual number of dynamics
         lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
-                                                                str(actual_n_dyns))
+                                                                str(int(actual_n_dyns)))
 
         with open(par, 'w') as f_out:
             [f_out.write(line) for line in lines]
