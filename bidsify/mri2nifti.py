@@ -66,11 +66,14 @@ def convert_mri(directory, cfg):
             os.remove(nii)
 
     if 'fmap' in cfg.keys():
-        idfs = [elem['id'] for elem in cfg['fmap'].values()]
-        _rename_phasediff_files(directory, idf=idfs)
+        idf = [elem['id'] for elem in cfg['fmap'].values()]
+    else:
+        idf = 'phasediff'
+
+    _rename_phasediff_files(directory, cfg, idf=idf)
 
 
-def _rename_phasediff_files(directory, idf='phasediff'):
+def _rename_phasediff_files(directory, cfg, idf):
     """ Renames Philips "B0" files (1 phasediff / 1 magnitude) because dcm2niix
     appends (or sometimes prepends) '_ph' to the filename after conversion.
     """
@@ -83,14 +86,18 @@ def _rename_phasediff_files(directory, idf='phasediff'):
         b0_files += sorted(glob(op.join(directory, '*%s*' % this_idf)))
     
     for f in b0_files:
-        if 'real' in op.basename(f):
-            os.rename(f, f.replace('real', 'phasediff')) 
-        else: 
+        os.rename(f, f.replace('phasediff', ''))
+        f = f.replace('phasediff', '')
+        if '_real' in op.basename(f):
+            os.rename(f, f.replace('_real', '_phasediff'))
+        else:
             if '.nii.gz' in f:
-                os.rename(f, f.replace('.nii.gz', 'magnitude1.nii.gz')) 
+                os.rename(f, f.replace('.nii.gz', '_magnitude1.nii.gz'))
             else:
-                os.rename(f, f.replace('.', 'magnitude1.'))
+                os.rename(f, f.replace('.', '_magnitude1.'))
 
+    magnitude_jsons = glob(op.join(directory, '*_magnitude.json'))
+    [os.remove(f) for f in magnitude_jsons]
 
 def _fix_header_manually_stopped_scan(par):
 
