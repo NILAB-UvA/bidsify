@@ -136,7 +136,7 @@ is the `"options"` section. An example of this section could be:
 .. code-block:: yaml
 
     options:
-      mri_ext: PAR  # alternatives: DICOM, dcm
+      mri_ext: PAR  # alternatives: DICOM, dcm, nifti
       debug: False
       n_cores: -1
       subject_stem: sub
@@ -147,7 +147,7 @@ is the `"options"` section. An example of this section could be:
 No options *need* to be set explicitly as they all have sensible defaults.
 The attribute-value pairs mean the following:
 
-- ``mri_type``: filetype of MRI-scans (PAR, dcm, DICOM; default: PAR)
+- ``mri_type``: filetype of MRI-scans (PAR, dcm, DICOM, nifti; default: PAR)
 - ``n_cores``: how many CPUs to use during conversion (default: -1, all CPUs)
 - ``debug``: whether to print extra output for debugging (default: False)
 - ``subject_stem``: prefix for subject-directories, e.g. "subject" in "subject-001" (default: sub)
