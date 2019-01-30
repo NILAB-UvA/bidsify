@@ -348,6 +348,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         to_deface = anat_files + magn_files
         Parallel(n_jobs=n_cores)(delayed(_deface)(f) for f in to_deface)
 
+    if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
+        for key in dtype_elements:
+            cfg.pop(key)
 
 def _parse_cfg(cfg_file, raw_data_dir, out_dir):
     """ Parses config file and sets defaults. """

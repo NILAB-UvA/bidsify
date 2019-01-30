@@ -5,6 +5,7 @@ import os.path as op
 from glob import glob
 from .utils import check_executable, _compress, _run_cmd
 from shutil import rmtree
+from ipdb import set_trace
 
 PIGZ = check_executable('pigz')
 
@@ -68,8 +69,9 @@ def convert_mri(directory, cfg):
     if 'fmap' in cfg.keys():
         idf = [elem['id'] for elem in cfg['fmap'].values()]
     else:
-        idf = 'phasediff'
+        idf = ['phasediff']
 
+    idf = list(set(idf))
     _rename_phasediff_files(directory, cfg, idf=idf)
 
 
@@ -77,7 +79,7 @@ def _rename_phasediff_files(directory, cfg, idf):
     """ Renames Philips "B0" files (1 phasediff / 1 magnitude) because dcm2niix
     appends (or sometimes prepends) '_ph' to the filename after conversion.
     """
-
+    
     if not isinstance(idf, list):
         idf = [idf]
 
@@ -85,19 +87,24 @@ def _rename_phasediff_files(directory, cfg, idf):
     for this_idf in idf:
         b0_files += sorted(glob(op.join(directory, '*%s*' % this_idf)))
     
+    new_files = []
     for f in b0_files:
-        os.rename(f, f.replace('phasediff', ''))
-        f = f.replace('phasediff', '')
-        if '_real' in op.basename(f):
-            os.rename(f, f.replace('_real', '_phasediff'))
+        fnew = f.replace('phasediff', '')
+        os.rename(f, fnew)
+        new_files.append(fnew)
+    
+    for fnew in new_files:
+        
+        if '_real' in op.basename(fnew):
+            os.rename(fnew, fnew.replace('_real', '_phasediff'))
         else:
-            if '.nii.gz' in f:
-                os.rename(f, f.replace('.nii.gz', '_magnitude1.nii.gz'))
+            if '.nii.gz' in fnew:
+                os.rename(fnew, fnew.replace('.nii.gz', '_magnitude1.nii.gz'))
             else:
-                os.rename(f, f.replace('.', '_magnitude1.'))
+                os.rename(fnew, fnew.replace('.', '_magnitude1.'))
 
-    magnitude_jsons = glob(op.join(directory, '*_magnitude.json'))
-    [os.remove(f) for f in magnitude_jsons]
+    magnitude_jsons = glob(op.join(directory, '*_magnitude1.json'))
+    [os.remove(tf) for tf in magnitude_jsons]
 
 def _fix_header_manually_stopped_scan(par):
 
