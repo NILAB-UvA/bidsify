@@ -5,7 +5,6 @@ import os.path as op
 from glob import glob
 from .utils import check_executable, _compress, _run_cmd
 from shutil import rmtree
-from ipdb import set_trace
 
 PIGZ = check_executable('pigz')
 
