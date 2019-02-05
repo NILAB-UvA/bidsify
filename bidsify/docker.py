@@ -2,11 +2,11 @@ from .utils import _run_cmd
 from .version import __version__
 
 
-def run_from_docker(cfg, in_dir, out_dir, validate, spinoza):
+def run_from_docker(cfg_path, directory, out_dir, validate, spinoza):
     """ Runs bidsify from Docker. """
     
-    cmd = ['docker', 'run', '-it', '--rm', '-v', '%s:/data' % in_dir, '-v',
-           '%s:/config.yml' % cfg, '-v', '%s:/bids' % out_dir,
+    cmd = ['docker', 'run', '--rm', '-v', '%s:/data' % directory, '-v',
+           '%s:/config.yml' % cfg_path, '-v', '%s:/bids' % out_dir,
            'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data', '-o', '/bids']
 
     if validate:

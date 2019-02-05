@@ -6,7 +6,6 @@ import shutil
 import fnmatch
 import warnings
 import yaml
-import logging
 import json
 import pandas as pd
 import nibabel as nib
@@ -116,7 +115,7 @@ def run_cmd():
           "\t validate=%s\n" % (args.directory, args.config_file, args.out, args.validate))
 
     if args.docker:
-        run_from_docker(cfg=args.config_file, in_dir=args.directory,
+        run_from_docker(cfg_path=args.config_file, directory=args.directory,
                         out_dir=args.out, validate=args.validate, spinoza=args.spinoza)
     else:
         bidsify(cfg_path=args.config_file, directory=args.directory,
