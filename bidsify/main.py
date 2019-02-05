@@ -152,7 +152,7 @@ def bidsify(cfg_path, directory, out_dir, validate):
     # First, parse the config file
     cfg = _parse_cfg(cfg_path, directory, out_dir)
     cfg['orig_cfg_path'] = cfg_path
-    
+  
     # Check whether everything is available
     if not check_executable('dcm2niix'):
         msg = """The program 'dcm2niix' was not found on this computer;
