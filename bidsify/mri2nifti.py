@@ -32,8 +32,9 @@ def convert_mri(directory, cfg):
             # if debug, print dcm2niix output
             _run_cmd(par_cmd.split(' '), verbose=cfg['options']['debug'])
             os.remove(f)
-            if mri_ext == 'PAR':
-                os.remove(f.replace('.%s' % mri_ext, '.REC'))
+
+    if mri_ext == 'PAR':
+        [os.remove(f) for f in glob(op.join(directory, '*.REC'))]
 
     elif mri_ext == 'DICOM':
         # Experimental enh DICOM conversion
@@ -144,7 +145,7 @@ def _fix_header_manually_stopped_scan(par):
     idx_stop_slices = len(lines) - 2
     slices = lines[idx_start_slices:idx_stop_slices]
     actual_n_dyns = len(slices) / n_slices
-    #set_trace()
+    
     if actual_n_dyns != n_dyns:
         print("Found %.3f dyns (%i slices) for file %s, but expected %i dyns (%i slices);"
               " going to try to fix it by removing slices from the PAR header ..." %
@@ -152,7 +153,6 @@ def _fix_header_manually_stopped_scan(par):
 
         lines_to_remove = len(slices) % n_slices
         if lines_to_remove != 0:
-            #set_trace()
             for i in range(lines_to_remove):
                 lines.pop(idx_stop_slices - (i+1))                
 
@@ -165,7 +165,5 @@ def _fix_header_manually_stopped_scan(par):
         # Replacing expected with actual number of dynamics
         lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
                                                                 str(int(actual_n_dyns)))
-
         with open(par, 'w') as f_out:
             [f_out.write(line) for line in lines]
-

@@ -101,7 +101,8 @@ def run_cmd():
     
     if args.out is None:
         args.out = op.join(op.dirname(args.directory), 'bids')
-    
+        print("Setting output-dir to %s" % args.out)
+ 
     if args.spinoza:
         args.config_file = op.join(op.dirname(__file__), 'data', 'spinoza_cfg.yml')
 
