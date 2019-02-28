@@ -63,7 +63,7 @@ def convert_mri(directory, cfg):
     niis = glob(op.join(directory, '*.nii'))
     if compress:
         for nii in niis:
-            _compress(nii)
+            _compress(nii, PIGZ)
             os.remove(nii)
 
     if 'fmap' in cfg.keys():
