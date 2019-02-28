@@ -1,3 +1,4 @@
+import os
 import subprocess
 import os.path as op
 from datetime import datetime
@@ -24,6 +25,10 @@ def run_from_docker(cfg_path, directory, out_dir, validate, spinoza):
 
     if spinoza:
         cmd.append('-s')
+
+    if not op.isdir(out_dir):
+        # Need to create dir beforehand, otherwise it's owned by root
+        os.makedirs(out_dir)
 
     print("Writing logfile to %s ..." % log_file)
     print("RUNNING:")
