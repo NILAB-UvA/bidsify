@@ -303,7 +303,16 @@ fmap:  # dtype
        FlipAngle: 90
        TotalReadoutTime: 0.0428062
        EffectiveEchoSpacing: 0.0007783
-            
+
+    Mb3Dirs128:
+      RepetitionTime: 2.550
+      PhaseEncodingDirection: j
+      ParallelReductionFactorInPlane: 1.3
+      MultibandAccelerationFactor: 3
+      WaterFatShift: 18.925
+      FlipAngle: 90
+      TotalReadoutTime: 0.0428062 # to check
+      EffectiveEchoSpacing: 0.0007783 # to check
 dwi:
   
   dwi:

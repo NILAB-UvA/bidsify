@@ -45,7 +45,7 @@ MTYPE_ORDERS = dict(
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
     magnitude1=dict(sub=0, ses=1, acq=2, run=3, magnitude=4),
-    epi=dict(sub=0, ses=1, acq=2, run=3, dir=5, epi=6)
+    epi=dict(sub=0, ses=1, acq=2, dir=3, run=4, epi=5)
 )
 
 # For some reason, people seem to use periods in filenames, so
@@ -209,7 +209,7 @@ def bidsify(cfg_path, directory, out_dir, validate):
     participants_tsv.to_csv(f_out, sep='\t', index=False)
 
     if validate:
-        bids_validator_log = op.join(op.dirname(out_dir),
+        bids_validator_log = op.join(out_dir,
                                      'bids_validator_log.txt')
         cmd = ['bids-validator', '--ignoreNiftiHeaders', out_dir]
 
@@ -324,10 +324,10 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
         print('\n'.join(unallocated))
 
         if is_sess:
-            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name,
+            unall_dir = op.join(out_dir, 'unallocated', sub_name,
                                 sess_name)
         else:
-            unall_dir = op.join(op.dirname(out_dir), 'unallocated', sub_name)
+            unall_dir = op.join(out_dir, 'unallocated', sub_name)
         _make_dir(unall_dir)
 
         for f in unallocated:

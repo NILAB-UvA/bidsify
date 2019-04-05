@@ -17,8 +17,12 @@ def run_from_docker(cfg_path, directory, out_dir, validate, spinoza):
         log_file = op.join(out_dir, 'log')
 
     uid = str(os.getuid())
-    cmd = ['docker', 'run', '--rm', '-u', uid + ':' + uid, '-v', '%s:/data' % directory, '-v',
-           '%s:/config.yml' % cfg_path, '-v', '%s:/bids' % out_dir,
+    cmd = ['docker', 'run', '--rm',
+           '-u', uid + ':' + uid,
+           '-v', '%s:/data' % directory,
+           '-v', '%s:/config.yml' % cfg_path,
+           '-v', '%s:/bids' % out_dir,
+           #'-v', '%s:/unallocated' % op.join(out_dir, 'unallocated'),
            'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data', '-o', '/bids']
 
     if validate:
