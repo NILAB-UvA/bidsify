@@ -662,7 +662,6 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
         for this_json in jsons:
             # Loop over jsons
             fbase = op.basename(this_json)
-            print("Extracting metadata for %s" % fbase)
             if 'acq' in fbase:
                 acqtype = fbase.split('acq-')[-1].split('_')[0]
             else:
