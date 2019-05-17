@@ -662,6 +662,7 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
         for this_json in jsons:
             # Loop over jsons
             fbase = op.basename(this_json)
+            print("Extracting metadata for %s" % fbase)
             if 'acq' in fbase:
                 acqtype = fbase.split('acq-')[-1].split('_')[0]
             else:
@@ -705,10 +706,17 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
                         int_for = op.join(ses2append, 'dwi', cdwi)
                 else:  # assume bold
                     dir_idf = fbase.split('dir-')[1].split('_')[0]
-                    cbold = glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))
+                    run_idf = fbase.split('run-')
+                    if len(run_idf) > 1:
+                        run_idf = run_idf[1].split('_')[0]
+                        cbold = glob(op.join(pardir, 'func', '*task-%s*acq-%s*_run-%s*_bold.nii.gz' % (dir_idf, acq_idf, run_idf)))
+                    else:
+                        cbold = glob(op.join(pardir, 'func', '*task-%s*acq-%s*_bold.nii.gz' % (dir_idf, acq_idf)))
                     if not cbold:
                         warnings.warn("Cound not find bold-file corresponding to topup (%s)!" % this_json)
                         int_for = 'Could not find corresponding file; add this yourself!'
+                    elif len(cbold) > 1:
+                        warnings.warn("Found multiple bold-files (%s) corresponding to topup (%s)!" % (cbold, this_json))
 
                     cbold = op.basename(cbold[0])
                     int_for = op.join(ses2append, 'func', cbold)
