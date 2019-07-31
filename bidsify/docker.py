@@ -6,7 +6,7 @@ from .utils import _run_cmd
 from .version import __version__
 
 
-def run_from_docker(cfg_path, directory, out_dir, validate, spinoza):
+def run_from_docker(cfg_path, directory, out_dir, validate, spinoza, uid=None):
     """ Runs bidsify from Docker. """
 
     proj_name = op.basename(op.dirname(directory))
@@ -16,7 +16,11 @@ def run_from_docker(cfg_path, directory, out_dir, validate, spinoza):
     else:
         log_file = op.join(out_dir, 'log')
 
-    uid = str(os.getuid())
+    if uid is None:
+        uid = str(os.getuid())  # note: if run by CRON, this is root!
+    else:
+        str(uid)
+
     cmd = ['docker', 'run', '--rm',
            '-u', uid + ':' + uid,
            '-v', '%s:/data' % directory,
