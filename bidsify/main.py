@@ -97,6 +97,10 @@ def run_cmd():
                         required=False, action='store_true',
                         default=False)
 
+    parser.add_argument('-n', '--nolog',
+                        help='Do not write out log (stdout/err only)',
+                        required=False, action='store_true',
+                        default=False)
     args = parser.parse_args()
     
     if args.out is None:
@@ -117,7 +121,7 @@ def run_cmd():
 
     if args.docker:
         run_from_docker(cfg_path=args.config_file, directory=args.directory,
-                        out_dir=args.out, validate=args.validate, spinoza=args.spinoza)
+                        out_dir=args.out, validate=args.validate, spinoza=args.spinoza, nolog=args.nolog)
     else:
         bidsify(cfg_path=args.config_file, directory=args.directory,
                 out_dir=args.out, validate=args.validate)
