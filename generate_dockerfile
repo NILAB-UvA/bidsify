@@ -1,8 +1,8 @@
 #!/bin/bash
-docker run --rm kaczmarj/neurodocker:0.4.3 generate docker \
+docker run --rm kaczmarj/neurodocker:0.6.0 generate docker \
            --base debian:stretch --pkg-manager apt \
            --install git \
-           --fsl version=5.0.10 \
+           --fsl version=6.0.1 \
            --dcm2niix version=master method=source \
            --miniconda create_env=neuro \
                        conda_install="python=3.6 numpy pandas" \

@@ -215,6 +215,9 @@ def bidsify(cfg_path, directory, out_dir, validate):
     if validate:
         bids_validator_log = op.join(out_dir,
                                      'bids_validator_log.txt')
+        if op.isfile(bids_validator_log):
+            os.remove(bids_validator_log)
+
         cmd = ['bids-validator', '--ignoreNiftiHeaders', out_dir]
 
         rs = _run_cmd(cmd, outfile=bids_validator_log, verbose=True)
@@ -299,6 +302,7 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
         dtype_elements = _infer_dtype_elements(this_out_dir, cfg)
         cfg.update(dtype_elements)
+        print(json.dumps(cfg, indent = 4))
 
     # Check which datatypes (dtypes) are available (func, anat, fmap, dwi)
     cfg['data_types'] = [c for c in cfg.keys() if c in DTYPES]

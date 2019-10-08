@@ -106,6 +106,7 @@ def _rename_phasediff_files(directory, cfg, idf):
     magnitude_jsons = glob(op.join(directory, '*_magnitude1.json'))
     [os.remove(tf) for tf in magnitude_jsons]
 
+
 def _fix_header_manually_stopped_scan(par):
 
     with open(par, 'r') as f:
@@ -120,7 +121,7 @@ def _fix_header_manually_stopped_scan(par):
 
     if not found:
         raise ValueError("Could not determine number of slices from PAR header (%s)!" % par)
-
+    
     found = False
     for line_nr_of_dyns, line in enumerate(lines):
         found = 'Max. number of dynamics' in line
@@ -128,12 +129,22 @@ def _fix_header_manually_stopped_scan(par):
             n_dyns = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
+    if not found:
+        raise ValueError("Could not determine number of dynamics from PAR header (%s)!" % par)
+    
     if n_dyns == 1:
         # Not an fMRI file! skip
         return
 
-    if not found:
-        raise ValueError("Could not determine number of slices from PAR header (%s)!" % par)
+    found = False
+    for line in lines:
+        found = 'Max. number of echoes' in line
+        if found:
+            n_echoes = int(line.split(':')[-1].strip().replace('\n', ''))
+            break
+    
+    # Multiecho fMRI has n_dyns * n_echoes volumes in the 4th dim
+    n_vols = int(n_dyns * n_echoes)
 
     found = False
     for idx_start_slices, line in enumerate(lines):
@@ -144,12 +155,12 @@ def _fix_header_manually_stopped_scan(par):
 
     idx_stop_slices = len(lines) - 2
     slices = lines[idx_start_slices:idx_stop_slices]
-    actual_n_dyns = len(slices) / n_slices
+    actual_n_vols = len(slices) / n_slices
     
-    if actual_n_dyns != n_dyns:
-        print("Found %.3f dyns (%i slices) for file %s, but expected %i dyns (%i slices);"
+    if actual_n_vols != n_vols:
+        print("Found %.3f vols (%i slices) for file %s, but expected %i dyns (%i slices);"
               " going to try to fix it by removing slices from the PAR header ..." %
-              (actual_n_dyns, len(slices), op.basename(par), n_dyns, n_dyns*n_slices))
+              (actual_n_vols, len(slices), op.basename(par), n_vols, n_vols*n_slices))
 
         lines_to_remove = len(slices) % n_slices
         if lines_to_remove != 0:
@@ -157,7 +168,7 @@ def _fix_header_manually_stopped_scan(par):
                 lines.pop(idx_stop_slices - (i+1))                
 
             slices = lines[idx_start_slices:(idx_stop_slices - lines_to_remove)]
-            actual_n_dyns = len(slices) / n_slices
+            actual_n_dyns = len(slices) / n_slices / n_echoes
             if not actual_n_dyns.is_integer():
                 print("Couldn't fix PAR header (probably multiple randomly dropped frames)")
                 return 
