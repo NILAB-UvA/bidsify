@@ -31,10 +31,6 @@ def test_bidsify(path_to_data):
     if op.isdir(unall_dir):
         rmtree(unall_dir)
 
-    bids_val_text = op.join(path_to_data, 'bids_validator_log.txt')
-    if op.isfile(bids_val_text):
-        os.remove(bids_val_text)
-
     if 'Upgrade' in path_to_data:
         cfg = op.join(data_path, 'spinoza_cfg.yml')
     else:
@@ -43,7 +39,6 @@ def test_bidsify(path_to_data):
     bidsify(cfg_path=cfg, directory=op.join(path_to_data, 'raw'),
             validate=True, out_dir=bids_dir)
     rmtree(bids_dir)
+    
     if op.isdir(unall_dir):
         rmtree(unall_dir)
-
-    os.remove(bids_val_text)

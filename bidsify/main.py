@@ -213,9 +213,9 @@ def bidsify(cfg_path, directory, out_dir, validate):
     participants_tsv.to_csv(f_out, sep='\t', index=False)
 
     if validate:
-        bids_validator_log = op.join(out_dir,
-                                     'bids_validator_log.txt')
+        bids_validator_log = op.join(out_dir, 'bids_validator_log.txt')
         if op.isfile(bids_validator_log):
+            print("Removing old BIDS-validator log prior to validation ...")
             os.remove(bids_validator_log)
 
         cmd = ['bids-validator', '--ignoreNiftiHeaders', out_dir]
