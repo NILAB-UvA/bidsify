@@ -230,6 +230,10 @@ def bidsify(cfg_path, directory, out_dir, validate):
             msg = ("bidsify exited without errors but the bids-validator "
                    "raised one or more errors. Check the complete "
                    "bids-validator report here: %s." % bids_validator_log)
+            f = open(bids_validator_log, 'r')
+            file_contents = f.read()
+            print(file_contents)
+            f.close()
             raise ValueError(msg)
 
 
