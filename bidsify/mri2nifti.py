@@ -25,9 +25,12 @@ def convert_mri(directory, cfg):
         for f in mri_files:
 
             if '.PAR' in f:
-                _fix_header_manually_stopped_scan(f)
+                is_multiecho = _fix_header_manually_stopped_scan(f)
 
             basename, ext = op.splitext(op.basename(f))
+            if is_multiecho:
+                basename += '_%%e'
+
             par_cmd = base_cmd + " -f %s %s" % (basename, f)
             # if debug, print dcm2niix output
             _run_cmd(par_cmd.split(' '), verbose=cfg['options']['debug'])
@@ -131,10 +134,6 @@ def _fix_header_manually_stopped_scan(par):
 
     if not found:
         raise ValueError("Could not determine number of dynamics from PAR header (%s)!" % par)
-    
-    if n_dyns == 1:
-        # Not an fMRI file! skip
-        return
 
     found = False
     for line in lines:
@@ -142,7 +141,11 @@ def _fix_header_manually_stopped_scan(par):
         if found:
             n_echoes = int(line.split(':')[-1].strip().replace('\n', ''))
             break
-    
+   
+    if n_dyns == 1:
+        # Not an fMRI file! skip
+        return n_echoes > 1
+
     # Multiecho fMRI has n_dyns * n_echoes volumes in the 4th dim
     n_vols = int(n_dyns * n_echoes)
 
@@ -171,10 +174,14 @@ def _fix_header_manually_stopped_scan(par):
             actual_n_dyns = len(slices) / n_slices / n_echoes
             if not actual_n_dyns.is_integer():
                 print("Couldn't fix PAR header (probably multiple randomly dropped frames)")
-                return 
+                return n_echoes > 1
 
         # Replacing expected with actual number of dynamics
         lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
                                                                 str(int(actual_n_dyns)))
         with open(par, 'w') as f_out:
             [f_out.write(line) for line in lines]
+
+        return n_echoes > 1
+
+    return n_echoes > 1
