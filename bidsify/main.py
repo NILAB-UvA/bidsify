@@ -45,7 +45,7 @@ MTYPE_ORDERS = dict(
     dwi=dict(sub=0, ses=1, acq=2, run=3, dwi=4),
     phasediff=dict(sub=0, ses=1, acq=2, run=3, phasediff=4),
     magnitude1=dict(sub=0, ses=1, acq=2, run=3, magnitude=4),
-    epi=dict(sub=0, ses=1, acq=2, dir=3, run=4, epi=5)
+    epi=dict(sub=0, ses=1, acq=2, dir=3, run=4, echo=5, epi=6)
 )
 
 # For some reason, people seem to use periods in filenames, so
@@ -372,7 +372,7 @@ def _parse_cfg(cfg_file, raw_data_dir, out_dir):
         raise IOError(msg)
 
     with open(cfg_file) as config:
-        cfg = yaml.load(config)
+        cfg = yaml.safe_load(config)
 
     # Set mappings to None if not present
     for mtype in MTYPE_ORDERS.keys():
@@ -585,6 +585,7 @@ def _rename(cdir, dtype, sub_name, cfg):
             # Check if there are any keys in filename already
             these_keys = these_kv_pairs.keys()
             for key_value in op.basename(f).split('_'):
+                key_value = key_value.split('.')[0]  # remove extensions
                 if len(key_value.split('-')) == 2:
                     key, value = key_value.split('-')
                     # If allowed (part of BIDS-spec) and not already added ...
@@ -613,7 +614,6 @@ def _rename(cdir, dtype, sub_name, cfg):
             # Create full name as common_name + unique filetype + original ext
             exts = op.basename(f).split('.')[1:]
             clean_exts = '.'.join([e for e in exts if e in ALLOWED_EXTS])
-
             full_name = kv_string + '_%s.%s' % (mtype, clean_exts)
             full_name = op.join(data_dir, full_name)
             if mtype == 'bold':

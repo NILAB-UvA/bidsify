@@ -25,11 +25,11 @@ def convert_mri(directory, cfg):
         for f in mri_files:
 
             if '.PAR' in f:
-                is_multiecho = _fix_header_manually_stopped_scan(f)
+                info = _get_extra_info_from_par_header(f)
 
             basename, ext = op.splitext(op.basename(f))
-            if is_multiecho:
-                basename += '_%%e'
+            if info['n_echoes'] > 1:
+                basename += '_echo-%e'
 
             par_cmd = base_cmd + " -f %s %s" % (basename, f)
             # if debug, print dcm2niix output
@@ -110,7 +110,9 @@ def _rename_phasediff_files(directory, cfg, idf):
     [os.remove(tf) for tf in magnitude_jsons]
 
 
-def _fix_header_manually_stopped_scan(par):
+def _get_extra_info_from_par_header(par):
+
+    info = dict()
 
     with open(par, 'r') as f:
         lines = f.readlines()
@@ -119,7 +121,7 @@ def _fix_header_manually_stopped_scan(par):
     for line in lines:
         found = 'Max. number of slices/locations' in line
         if found:
-            n_slices = int(line.split(':')[-1].strip().replace('\n', ''))
+            info['n_slices'] = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
     if not found:
@@ -129,7 +131,7 @@ def _fix_header_manually_stopped_scan(par):
     for line_nr_of_dyns, line in enumerate(lines):
         found = 'Max. number of dynamics' in line
         if found:
-            n_dyns = int(line.split(':')[-1].strip().replace('\n', ''))
+            info['n_dyns'] = int(line.split(':')[-1].strip().replace('\n', ''))
             break
 
     if not found:
@@ -139,16 +141,19 @@ def _fix_header_manually_stopped_scan(par):
     for line in lines:
         found = 'Max. number of echoes' in line
         if found:
-            n_echoes = int(line.split(':')[-1].strip().replace('\n', ''))
+            info['n_echoes'] = int(line.split(':')[-1].strip().replace('\n', ''))
             break
-   
-    if n_dyns == 1:
-        # Not an fMRI file! skip
-        return n_echoes > 1
+
+    if info['n_echoes'] > 1:
+        print("WARNING: file %s seems to be a multiecho file - this feature is experimental!" % op.basename(par))
+
+    if info['n_dyns'] == 1:
+        # Not an fMRI file! skip the rest
+        return info
 
     # Multiecho fMRI has n_dyns * n_echoes volumes in the 4th dim
-    n_vols = int(n_dyns * n_echoes)
-
+    info['n_vols'] = int(info['n_dyns'] * info['n_echoes'])
+    
     found = False
     for idx_start_slices, line in enumerate(lines):
         found = '# === IMAGE INFORMATION =' in line
@@ -158,30 +163,31 @@ def _fix_header_manually_stopped_scan(par):
 
     idx_stop_slices = len(lines) - 2
     slices = lines[idx_start_slices:idx_stop_slices]
-    actual_n_vols = len(slices) / n_slices
+    actual_n_vols = len(slices) / info['n_slices']
     
-    if actual_n_vols != n_vols:
+    if actual_n_vols != info['n_vols']:
         print("Found %.3f vols (%i slices) for file %s, but expected %i dyns (%i slices);"
               " going to try to fix it by removing slices from the PAR header ..." %
-              (actual_n_vols, len(slices), op.basename(par), n_vols, n_vols*n_slices))
+              (actual_n_vols, len(slices), op.basename(par), info['n_vols'], info['n_vols']*info['n_slices']))
 
-        lines_to_remove = len(slices) % n_slices
+        lines_to_remove = len(slices) % info['n_slices']
         if lines_to_remove != 0:
             for i in range(lines_to_remove):
                 lines.pop(idx_stop_slices - (i+1))                
 
             slices = lines[idx_start_slices:(idx_stop_slices - lines_to_remove)]
-            actual_n_dyns = len(slices) / n_slices / n_echoes
+            actual_n_dyns = len(slices) / info['n_slices'] / info['n_echoes']
             if not actual_n_dyns.is_integer():
                 print("Couldn't fix PAR header (probably multiple randomly dropped frames)")
-                return n_echoes > 1
+                return info
 
         # Replacing expected with actual number of dynamics
-        lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(n_dyns),
+        lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(info['n_dyns']),
                                                                 str(int(actual_n_dyns)))
+        info['n_dyns'] = actual_n_dyns
         with open(par, 'w') as f_out:
             [f_out.write(line) for line in lines]
 
-        return n_echoes > 1
+        return info
 
-    return n_echoes > 1
+    return info
