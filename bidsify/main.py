@@ -293,11 +293,6 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     # First, convert all MRI-files
     convert_mri(this_out_dir, cfg)
 
-    # Reorient2std 
-    if not 'TRAVIS' in os.environ:
-        # only run when not on Travis CI (on which FSL is not installed)
-        _reorient_mri(this_out_dir)
-
     # Remove weird ADC file(s); no clue what they represent ...
     [os.remove(f) for f in glob(op.join(this_out_dir, '*ADC*.nii.gz'))]
 
@@ -353,13 +348,19 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     for data_dir in data_dirs:
         _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg)
 
+    # Reorient2std 
+    if not 'TRAVIS' in os.environ:
+        # only run when not on Travis CI (on which FSL is not installed)
+        all_niis = glob(op.join(this_out_dir, '*', '*.nii.gz'))
+        Parallel(n_jobs=n_cores)(delayed(_reorient_file)(f) for f in all_niis)
+    
     # Deface the anatomical data
     if options['deface']:
         anat_files = glob(op.join(this_out_dir, 'anat', '*.nii.gz'))
         magn_files = glob(op.join(this_out_dir, 'fmap', '*magnitude*.nii.gz'))
         to_deface = anat_files + magn_files
         Parallel(n_jobs=n_cores)(delayed(_deface)(f) for f in to_deface)
-
+    
     if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
         for key in dtype_elements:
             cfg.pop(key)
@@ -776,11 +777,9 @@ def _add_missing_BIDS_metadata_and_save_to_disk(data_dir, cfg):
             _append_to_json(this_json, current_metadata)
 
 
-def _reorient_mri(directory):
-    """ Reorient MRI file """
-
-    files = glob(op.join(directory, '*.nii.gz'))
-    _ = [_run_cmd(['fslreorient2std', f, f]) for f in files]
+def _reorient_file(f):
+    """ Reorient MRI file """ 
+    _run_cmd(['fslreorient2std', f, f])
 
 
 def _deface(f):
