@@ -301,7 +301,9 @@ def _process_directory(cdir, out_dir, cfg, is_sess=False):
     if 'spinoza_cfg' in op.basename(cfg['orig_cfg_path']):
         dtype_elements = _infer_dtype_elements(this_out_dir, cfg)
         cfg.update(dtype_elements)
-        print(json.dumps(cfg, indent = 4))
+        if cfg['options']['debug']:
+            print("Creating the following config:")
+            print(json.dumps(cfg, indent = 4))
 
     # Check which datatypes (dtypes) are available (func, anat, fmap, dwi)
     cfg['data_types'] = [c for c in cfg.keys() if c in DTYPES]
