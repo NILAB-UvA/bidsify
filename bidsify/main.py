@@ -488,7 +488,7 @@ def _extract_metadata_from_cfg(cfg):
         spi_cfg = op.join(op.dirname(__file__), 'data',
                           'spinoza_metadata.yml')
         with open(spi_cfg) as f:
-            cfg['spinoza_metadata'] = yaml.load(f)
+            cfg['spinoza_metadata'] = yaml.safe_load(f)
 
     # Check config for metadata
     for dtype in these_dtypes:
