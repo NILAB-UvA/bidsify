@@ -306,7 +306,7 @@ fmap:  # dtype
 
     Mb3Dirs128:
       RepetitionTime: 2.550
-      PhaseEncodingDirection: j
+      PhaseEncodingDirection: j-
       ParallelReductionFactorInPlane: 1.3
       MultibandAccelerationFactor: 3
       WaterFatShift: 18.925

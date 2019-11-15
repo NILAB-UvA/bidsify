@@ -6,8 +6,13 @@ from .utils import _run_cmd
 from .version import __version__
 
 
-def run_from_docker(cfg_path, directory, out_dir, validate, spinoza, uid=None, nolog=False):
+def run_from_docker(cfg_path, directory, out_dir, validate, spinoza, uid=None, nolog=False, name=None):
     """ Runs bidsify from Docker. """
+
+    if name is None:
+        today = datetime.now().strftime("%Y%m%d")
+        basedir = op.basename(op.dirname(directory))
+        name = 'bidsify_%s_%s' % (basedir, today)
 
     proj_name = op.basename(op.dirname(directory))
     date = str(datetime.now().strftime("%Y-%m-%d"))
@@ -29,7 +34,7 @@ def run_from_docker(cfg_path, directory, out_dir, validate, spinoza, uid=None, n
            '-v', '%s:/data' % directory,
            '-v', '%s:/config.yml' % cfg_path,
            '-v', '%s:/bids' % out_dir,
-           #'-v', '%s:/unallocated' % op.join(out_dir, 'unallocated'),
+           #'--name %s' % name,
            'lukassnoek/bidsify:%s' % __version__, 'bidsify', '-c', '/config.yml', '-d', '/data', '-o', '/bids']
 
     if validate:
