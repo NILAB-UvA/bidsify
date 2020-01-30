@@ -1,0 +1,45 @@
+options:
+    mri_ext: PAR  # alternatives: nifti/dcm/DICOM
+    debug: False  # alternative: True, prints out a lot of stuff
+    n_cores: -1  # number of CPU cores to use (for some operations)
+    subject_stem: sub  # subject identifier
+    deface: True  # whether to deface structural scans
+    spinoza_data: False  # only relevant for data acquired at the Spinoza Centre
+
+mappings:
+    bold: _bold
+    T1w: _T1w
+    dwi: _dwi
+    physio: _physio
+    events: _events
+    phasediff: _phasediff
+    magnitude1: _magnitude1
+    epi: _topup
+    T2w: _T2w
+    FLAIR: _FLAIR
+
+metadata:  # will be appended to EACH file
+    MagneticFieldStrength: 3
+    ParallelAcquisitionTechnique: SENSE
+    BIDSVersion: '1.1.0'
+    InstitutionName: Spinoza Centre for Neuroimaging, location RE
+    
+anat:
+    single_T1:  # this name doesn't matter
+        id: t13d  # identifier to this type of scan
+        acq: 3min  # optional
+
+func:
+    restingstate:
+        id: pioprs
+        task: rest
+        acq: MB3Sense2Mm3
+    harriri:
+        id: harriri
+        task: harriri
+        acq: SeqMm3Tr2000
+
+dwi:
+    dwi:
+        id: dti32
+        acq: SeqSense2Dirs32
