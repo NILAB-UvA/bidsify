@@ -171,6 +171,7 @@ def _get_extra_info_from_par_header(par):
               (actual_n_vols, len(slices), op.basename(par), info['n_vols'], info['n_vols']*info['n_slices']))
 
         lines_to_remove = len(slices) % info['n_slices']
+        print("Number of excess slices: %i" % int(lines_to_remove))
         if lines_to_remove != 0:
             for i in range(lines_to_remove):
                 lines.pop(idx_stop_slices - (i+1))                
@@ -180,6 +181,8 @@ def _get_extra_info_from_par_header(par):
             if not actual_n_dyns.is_integer():
                 print("Couldn't fix PAR header (probably multiple randomly dropped frames)")
                 return info
+        else:
+            actual_n_dyns = actual_n_vols
 
         # Replacing expected with actual number of dynamics
         lines[line_nr_of_dyns] = lines[line_nr_of_dyns].replace(str(info['n_dyns']),
