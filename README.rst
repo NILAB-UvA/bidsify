@@ -15,6 +15,8 @@
 .. image:: https://img.shields.io/badge/python-3.6-blue.svg
     :target: https://www.python.org/downloads/release/python-360
 
+**This project has been archived as I finished my PhD!**
+
 This package offers a tool to convert your raw (f)MRI data to the "Brain Imaging Data Structuce" (BIDS_) format. Using only a simple (json or yaml) config-file, it renames, reformats, and restructures your files such that it fits the BIDS naming scheme and conforms to file-formats specified by BIDS. After using ``bidsify``, you can run your data through BIDS-compatible analysis/preprocessing pipelines such as `fmriprep <http://fmriprep.readthedocs.io/en/latest/>`_
 and `mriqc <http://mriqc.readthedocs.io>`_ package.
 
